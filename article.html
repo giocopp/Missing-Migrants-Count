@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Bit 1: How IOM and UNITED count the dead on Europe's border</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
+  <style>
+    :root {
+      --text:        #1a1a1a;
+      --muted:       #6b6b6b;
+      --line:        #d8d8d8;
+      --accent:      #7a1b1b;
+      --bg:          #fafafa;
+      --bg-figure:   #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+      font-size: 18px;
+      line-height: 1.65;
+    }
+
+    article {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 64px 32px 96px;
+    }
+
+    .kicker {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: 42px;
+      line-height: 1.15;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0 0 14px;
+    }
+
+    .deck {
+      font-size: 21px;
+      line-height: 1.45;
+      color: var(--muted);
+      margin: 0 0 28px;
+      font-weight: 400;
+      text-align: left;
+      hyphens: manual;
+    }
+
+    .byline {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 0;
+      margin: 0 0 36px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .byline .author { color: var(--text); font-weight: 600; }
+
+    p {
+      margin: 0 0 22px;
+      text-align: justify;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+    }
+    p.lede::first-letter {
+      float: left;
+      font-size: 64px;
+      line-height: 0.9;
+      font-weight: 700;
+      padding: 6px 8px 0 0;
+      color: var(--accent);
+    }
+
+    a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
+    a:hover { border-bottom-color: var(--accent); }
+
+    figure {
+      margin: 36px auto;
+      padding: 0;
+      background: var(--bg-figure);
+      max-width: 720px;
+    }
+    figure img,
+    figure video {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    figcaption {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      padding: 12px 4px 0;
+    }
+    figcaption strong { color: var(--text); }
+
+    /* Custom video controls */
+    .player {
+      position: relative;
+      background: #000;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #f3f3f3;
+      border-top: 1px solid var(--line);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+    }
+    .controls button {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1;
+      min-width: 36px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .controls button:hover {
+      background: #efefef;
+      border-color: #b9b9b9;
+    }
+    .controls button:active { background: #e6e6e6; }
+    .controls .scrub {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      background: #d4d4d4;
+      border-radius: 2px;
+      outline: none;
+    }
+    .controls .scrub::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    .controls .scrub::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+    .controls .time {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      min-width: 90px;
+      text-align: right;
+    }
+
+    /* Leaflet map — main visual, breaks out of the 920 px article column
+       on viewports wide enough to show it. Falls back to article width
+       on narrower screens. */
+    .leaflet-figure { max-width: 1080px; }
+    @media (min-width: 1160px) {
+      .leaflet-figure {
+        margin-left:  -80px;   /* (920 - 1080) / 2 — pulls 80 px on each side */
+        margin-right: -80px;
+      }
+    }
+    #incident-map {
+      width: 100%;
+      height: 620px;
+      background: #eef0f2;
+    }
+    .map-toggle {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #f3f3f3;
+      border-top: 1px solid var(--line);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .map-toggle .label {
+      color: var(--muted);
+      margin-right: 4px;
+    }
+    .map-toggle button {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 6px 14px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .map-toggle button:hover {
+      background: #efefef;
+      border-color: #b9b9b9;
+    }
+    .map-toggle button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .leaflet-tooltip.incident-tip {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+      padding: 10px 14px;
+      min-width: 240px;
+      max-width: 420px;
+      white-space: normal;
+    }
+    .leaflet-tooltip.incident-tip strong { color: var(--text); }
+    .leaflet-tooltip.incident-tip .meta { color: var(--muted); margin-bottom: 4px; }
+    .leaflet-tooltip.incident-tip .deaths {
+      color: var(--accent); font-weight: 700;
+    }
+
+    /* Map title (sits above the map, inside the figure) */
+    .map-title {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.35;
+      padding: 0 4px 12px;
+      letter-spacing: -0.005em;
+    }
+
+    /* Year-range slider bar (sits below the source toggle) */
+    .year-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 18px 16px;
+      background: #f3f3f3;
+      border-top: 1px solid var(--line);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+    .year-bar .year-label {
+      color: var(--muted);
+      min-width: 36px;
+    }
+    .year-bar .year-readout {
+      color: var(--accent);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      min-width: 110px;
+      text-align: center;
+    }
+    .year-bar .slider-wrap {
+      flex: 1;
+      min-width: 280px;
+      padding: 6px 6px 0;        /* small breathing room for handle overflow */
+      position: relative;
+      height: 78px;
+    }
+    /* Histogram of deaths per month — sits inside the slider rail.
+       Bars in the [from, to] window are accent red, bars outside are pale.
+       Pointer-events disabled so clicks pass through to the slider handles. */
+    .year-hist {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      right: 6px;
+      height: 56px;
+      pointer-events: none;
+      overflow: visible;
+    }
+    .year-hist .bar { transition: fill 0.12s; }
+    /* Year tick labels under the rail. Each <span> is positioned absolutely
+       at the percentage corresponding to its year — wired up in JS. */
+    .year-axis {
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: 0;
+      height: 14px;
+      font-size: 10.5px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+    .year-axis span {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+    }
+    .year-bar button.reset-years {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 12.5px;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .year-bar button.reset-years:hover {
+      background: #efefef;
+      border-color: #b9b9b9;
+    }
+
+    /* Filter bar with three multi-select dropdowns (Choices.js).
+       The three dropdowns sit side-by-side and wrap on narrow screens. */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 12px 18px;
+      padding: 14px 18px;
+      background: #f3f3f3;
+      border-top: 1px solid var(--line);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 220px;
+      flex: 1 1 220px;
+    }
+    .filter-group .filter-label {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Choices.js overrides — slimmer, monochrome, matches the article. */
+    .filter-bar .choices { margin-bottom: 0; font-size: 13px; }
+    .filter-bar .choices__inner {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 4px 6px 0 6px;
+      min-height: 30px;
+      font-size: 13px;
+    }
+    .filter-bar .choices.is-focused .choices__inner,
+    .filter-bar .choices.is-open    .choices__inner {
+      border-color: #9c9c9c;
+    }
+    .filter-bar .choices__list--multiple .choices__item {
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 3px;
+      padding: 2px 22px 2px 7px;
+      margin: 2px 4px 4px 0;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    .filter-bar .choices__list--multiple .choices__item .choices__button {
+      border-left: 1px solid #d0d0d0;
+      margin: 0 -18px 0 6px;
+      padding-left: 12px;
+      opacity: 0.6;
+    }
+    .filter-bar .choices__list--multiple .choices__item .choices__button:hover {
+      opacity: 1;
+    }
+    .filter-bar .choices__list--dropdown {
+      border: 1px solid #b9b9b9;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .filter-bar .choices__list--dropdown .choices__item--selectable {
+      padding: 6px 10px;
+    }
+    .filter-bar .choices__list--dropdown .choices__item--selectable.is-highlighted {
+      background: #ececec;
+    }
+    .filter-bar .choices__input {
+      background: transparent;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    /* Cause-of-death color swatches: rendered as a ::before dot inside both
+       the dropdown options and the selected chips. The data-value attribute is
+       set by Choices.js from each <option value="..."> in the source select. */
+    .cause-choices .choices__list--dropdown .choices__item--selectable::before,
+    .cause-choices .choices__list--multiple .choices__item::before {
+      content: '';
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-right: 7px;
+      vertical-align: -1px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+      background: #c5c5c5;
+    }
+    .cause-choices .choices__item[data-value="drowning"]::before { background: #2E5984; }
+    .cause-choices .choices__item[data-value="vehicle"]::before  { background: #C75B12; }
+    .cause-choices .choices__item[data-value="violence"]::before { background: #B22A2A; }
+    .cause-choices .choices__item[data-value="exposure"]::before { background: #5C4F8A; }
+    .cause-choices .choices__item[data-value="sickness"]::before { background: #6B8E23; }
+    .cause-choices .choices__item[data-value="other"]::before    { background: #8A8784; }
+
+    /* noUiSlider — UNHCR-style brush. The rail is tall (matches histogram),
+       transparent so the bars show through; the connect bar is a faint tint
+       that highlights the selected range; handles are slim accent rectangles. */
+    .year-slider.noUi-target {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      right: 6px;
+      height: 56px !important;
+      background: transparent;
+      border: 1px solid #cdc7c7;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .year-slider .noUi-base { background: transparent; }
+    .year-slider .noUi-connects { background: transparent; }
+    .year-slider .noUi-connect {
+      background: rgba(122, 27, 27, 0.06);
+    }
+    .year-slider .noUi-handle {
+      width: 7px !important;
+      height: 66px !important;
+      top: -6px !important;
+      right: -3.5px !important;
+      border-radius: 1px !important;
+      background: var(--accent) !important;
+      border: 0 !important;
+      box-shadow: 0 0 4px rgba(0,0,0,0.18);
+      cursor: ew-resize;
+    }
+    .year-slider .noUi-handle:active { cursor: grabbing; }
+    .year-slider .noUi-handle::before,
+    .year-slider .noUi-handle::after { display: none; }
+    .year-slider .noUi-tooltip { display: none; }
+
+    /* Counts inline in the toggle bar, pushed to the right */
+    .map-counts {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12.5px;
+      white-space: nowrap;
+    }
+    .map-counts .val {
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .map-counts .sep {
+      margin: 0 8px;
+      color: #c4c4c4;
+    }
+    @media (max-width: 540px) {
+      .map-counts {
+        margin-left: 0;
+        flex-basis: 100%;
+        order: 10;
+        font-size: 12px;
+      }
+    }
+
+    /* Map annotations: cities, seas, SAR zones (override Leaflet's default
+       marker styling so these are pure text). */
+    .map-city, .map-sea, .map-sar {
+      background: none !important;
+      border: 0 !important;
+      pointer-events: none;
+    }
+
+    .map-city .city-dot {
+      position: absolute;
+      left: -3px; top: -3px;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
+    }
+    .map-city .city-name {
+      position: absolute;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      color: #141414;
+      white-space: nowrap;
+      text-shadow:
+        -1px -1px 0 #fafafa, 1px -1px 0 #fafafa,
+        -1px  1px 0 #fafafa, 1px  1px 0 #fafafa,
+         0    0   3px #fafafa;
+    }
+    .map-city.dir-right .city-name { left:  8px; top: -7px; }
+    .map-city.dir-left  .city-name { right: 8px; top: -7px; }
+    .map-city.dir-above .city-name { left: 0; bottom: 8px; transform: translateX(-50%); }
+    .map-city.dir-below .city-name { left: 0; top: 8px;    transform: translateX(-50%); }
+
+    .map-sea .sea-name {
+      position: absolute;
+      font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+      font-style: italic;
+      color: #404040;
+      font-size: 13px;
+      white-space: nowrap;
+      left: 0; top: 0;
+      transform: translate(-50%, -50%);
+      text-shadow:
+        -1px -1px 0 #fafafa, 1px -1px 0 #fafafa,
+        -1px  1px 0 #fafafa, 1px  1px 0 #fafafa,
+         0    0   4px #fafafa;
+    }
+
+    .map-sar .sar-name {
+      position: absolute;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #888888;
+      white-space: nowrap;
+      left: 0; top: 0;
+      transform: translate(-50%, -50%);
+      text-shadow:
+        0 0 4px #fafafa, 0 0 4px #fafafa, 0 0 4px #fafafa;
+    }
+
+    hr.rule {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 48px 0 24px;
+    }
+
+    .sources {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .sources strong { color: var(--text); }
+    .sources a { color: var(--muted); border-bottom-color: #cfcfcf; }
+
+    @media (max-width: 540px) {
+      article { padding: 36px 18px 64px; }
+      h1 { font-size: 32px; }
+      .deck { font-size: 18px; }
+      body { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <article>
+    <div class="kicker">Data Bit 1 · E1493 Data Journalism 2026</div>
+
+    <h1>[Title — placeholder]</h1>
+
+    <p class="deck">[Subtitle — placeholder]</p>
+
+    <div class="byline">
+      <span class="author">Giorgio Coppola</span>
+      <span>April 2026</span>
+    </div>
+
+    <p class="lede">[Lede paragraph — placeholder. Set up the story: two organisations counting deaths on routes to Europe, with very different methodologies and very different numbers.]</p>
+
+    <p>[Body paragraph — placeholder. Explain why these counts matter, and the broad scope of the picture: 33 years of UNITED records, 12 of IOM, every Europe-bound corridor.]</p>
+
+    <p>[Body paragraph — placeholder. Briefly introduce the two sources and how they collect data.]</p>
+
+    <figure class="leaflet-figure">
+      <div class="map-title">Migrant deaths on routes to Europe, by source — 1993–2026</div>
+      <div id="incident-map" role="img" aria-label="Interactive map of recorded migrant deaths on routes to Europe, with a year-range selector and a toggle between the IOM Missing Migrants Project and the UNITED List of Refugee Deaths."></div>
+      <div class="map-toggle">
+        <span class="label">Source:</span>
+        <button class="layer-btn active" data-source="united">UNITED</button>
+        <button class="layer-btn" data-source="iom">IOM</button>
+        <div class="map-counts">
+          <span class="val records-val">—</span> recorded events
+          <span class="sep">·</span>
+          <span class="val deaths-val">—</span> dead or missing
+        </div>
+      </div>
+      <div class="year-bar">
+        <span class="year-label">Years</span>
+        <span class="year-readout"><span class="year-from-val">1993</span> – <span class="year-to-val">2026</span></span>
+        <div class="slider-wrap">
+          <svg class="year-hist" aria-hidden="true"
+               width="100%" height="100%"
+               preserveAspectRatio="none"></svg>
+          <div class="year-slider" aria-label="Year range"></div>
+          <div class="year-axis" aria-hidden="true"></div>
+        </div>
+        <button class="reset-years" type="button">Reset</button>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label class="filter-label" for="origin-select">Region of origin</label>
+          <select id="origin-select" class="origin-select" multiple
+                  aria-label="Filter by region of origin">
+            <option value="sub_saharan_africa">Sub-Saharan Africa</option>
+            <option value="northern_africa">Northern Africa</option>
+            <option value="middle_east">Middle East / Levant</option>
+            <option value="south_central_asia">South / Central Asia</option>
+            <option value="europe">Europe</option>
+            <option value="other">Other</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="route-select">Migration route</label>
+          <select id="route-select" class="route-select" multiple
+                  aria-label="Filter by migration route">
+            <!-- options populated dynamically based on the active source -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="cause-select">Cause of death</label>
+          <select id="cause-select" class="cause-select" multiple
+                  aria-label="Filter by cause of death">
+            <option value="drowning">Drowning</option>
+            <option value="vehicle">Vehicle / transport</option>
+            <option value="violence">Violence</option>
+            <option value="exposure">Exposure / cold / starvation</option>
+            <option value="sickness">Sickness</option>
+            <option value="other">Other / unknown</option>
+          </select>
+        </div>
+      </div>
+      <figcaption><strong>Two organisations, two pictures of the same border.</strong> Each circle marks a reported event; size scales with the number of dead or missing. UNITED has been logging deaths of people trying to reach Europe since 1993, IOM since 2014. Hover a circle for details. Drag the year sliders to filter the visible window.</figcaption>
+    </figure>
+
+    <p>[Body paragraph — placeholder. Talk about how the two pictures differ — what UNITED captures that IOM misses, and vice versa.]</p>
+
+    <p>[Body paragraph — placeholder. Mediterranean focus: zoom into the central corridor and discuss what the same disagreement looks like at a tighter scale.]</p>
+
+    <p>[Closing paragraph — placeholder.]</p>
+
+    <hr class="rule">
+
+    <p class="sources">
+      <strong>Data and methods.</strong>
+      Death records are from the <a href="https://missingmigrants.iom.int/">IOM Missing Migrants Project</a> (2014–2026, filtered to corridors leading to Europe via IOM's <em>Route</em> field) and from <a href="https://unitedagainstrefugeedeaths.eu/">UNITED for Intercultural Action</a>'s <em>List of Refugee Deaths</em> (1993–2026, Europe-bound by NGO mandate). Both datasets often record one row per individual death rather than per event; rows that share a coordinate and date are aggregated into a single incident, summing dead/missing — so each circle on the map corresponds to one event, not to one row. UNITED's <em>crossing_countries</em> field (semicolon-joined ISO-2 codes) is mapped to IOM's <em>Route</em> labels so the route filter shares one vocabulary across the two sources; ambiguous Spain-Africa entries are split between Western Mediterranean and the Atlantic-to-Canaries route by latitude. Records that geocode outside the Europe-bound envelope (lon −25° to 55°, lat 10° to 75°) are excluded for clarity. Basemap from <a href="https://carto.com/attribution/">CartoDB</a> · OpenStreetMap contributors, used under ODbL.
+      All code, data and replication package are at <a href="https://github.com/data-journalism-26/data-bit-1-giorgio">github.com/data-journalism-26/data-bit-1-giorgio</a>.
+    </p>
+
+    <p class="sources">
+      <strong>References.</strong>
+      <em>[Citations — placeholder]</em>
+    </p>
+
+  </article>
+
+  <script>
+    // ============================================================
+    // Interactive Leaflet map: migrant deaths on routes to Europe
+    // Source toggle (UNITED / IOM) + year-range slider.
+    // ============================================================
+    window.addEventListener('load', function () {
+      if (typeof L === 'undefined') return;  // Leaflet failed to load
+
+      var YEAR_MIN = 1993;
+      var YEAR_MAX = 2026;
+      // Both sources share this rail so the visual stays comparable.
+      // IOM has no data before 2014 — that empty stretch is the point.
+      var FIXED_RANGE = { min: YEAR_MIN, max: YEAR_MAX };
+
+      var map = L.map('incident-map', {
+        center: [42.0, 14.0],     // Centred on Italy, fits Mediterranean + most of Europe
+        zoom: 4,
+        zoomSnap: 0.5,
+        scrollWheelZoom: false    // avoid hijacking page scroll
+      });
+
+      L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png',
+        {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          subdomains: 'abcd',
+          maxZoom: 18
+        }
+      ).addTo(map);
+
+      // Re-enable scroll-zoom only when the user clicks/focuses the map
+      map.on('focus', function () { map.scrollWheelZoom.enable(); });
+      map.on('blur',  function () { map.scrollWheelZoom.disable(); });
+
+      // ---- Cause-of-death palette (must match the legend swatches) ----
+      var CAUSE_COLORS = {
+        drowning: '#2E5984',
+        vehicle:  '#C75B12',
+        violence: '#B22A2A',
+        exposure: '#5C4F8A',
+        sickness: '#6B8E23',
+        other:    '#8A8784'
+      };
+      var CAUSE_LABELS = {
+        drowning: 'Drowning',
+        vehicle:  'Vehicle / transport',
+        violence: 'Violence',
+        exposure: 'Exposure / cold / starvation',
+        sickness: 'Sickness',
+        other:    'Other / unknown'
+      };
+
+      function radiusFor(n) {
+        return Math.max(3.5, Math.sqrt(Math.max(1, n)) * 1.4);
+      }
+
+      function tip(p) {
+        var loc = [p.location, p.country].filter(Boolean).join(', ');
+        var macroLabel = CAUSE_LABELS[p.cause_macro] || 'Unknown';
+        return '<div class="meta">' + p.date + (loc ? ' &middot; ' + loc : '') + '</div>'
+             + '<span class="deaths">' + p.n_dead + '</span> dead or missing'
+             + ' &middot; <em>' + macroLabel + '</em>'
+             + (p.cause ? '<br>' + p.cause : '');
+      }
+
+      function buildLayer(features) {
+        // Largest first so smallest end up on top of the SVG stack and stay hoverable.
+        var sorted = features.slice().sort(function (a, b) {
+          return (b.properties.n_dead || 0) - (a.properties.n_dead || 0);
+        });
+        return L.geoJSON({ type: 'FeatureCollection', features: sorted }, {
+          pointToLayer: function (feat, latlng) {
+            var col = CAUSE_COLORS[feat.properties.cause_macro] || CAUSE_COLORS.other;
+            return L.circleMarker(latlng, {
+              radius:      radiusFor(feat.properties.n_dead),
+              fillColor:   col,
+              color:       col,
+              weight:      1,
+              fillOpacity: 0.55,
+              opacity:     0.85
+            });
+          },
+          onEachFeature: function (feat, layer) {
+            layer.bindTooltip(tip(feat.properties), {
+              className: 'incident-tip', sticky: true, direction: 'top',
+              offset: [0, -4]
+            });
+          }
+        });
+      }
+
+      // ---- State ----
+      // The three filter sets follow an "empty = no filter" convention: a
+      // feature passes when the filter set is empty OR the feature's value
+      // is in the set. This matches Choices.js's natural empty state.
+      var allFeatures = { united: [], iom: [] };
+      var activeLayer = null;
+      var currentSource = 'united';
+      var yearFrom = YEAR_MIN, yearTo = YEAR_MAX;
+      var originFilter = new Set();
+      var routeFilter  = new Set();
+      var causeFilter  = new Set();
+
+      // ---- Counts / DOM ----
+      var countsRoot   = document.querySelector('.map-counts');
+      var fromVal      = document.querySelector('.year-from-val');
+      var toVal        = document.querySelector('.year-to-val');
+      var sliderEl     = document.querySelector('.year-slider');
+      var histSvg      = document.querySelector('.year-hist');
+      var resetBtn     = document.querySelector('.reset-years');
+      var originSelect = document.querySelector('#origin-select');
+      var routeSelect  = document.querySelector('#route-select');
+      var causeSelect  = document.querySelector('#cause-select');
+
+      function updateCounts(features) {
+        var n = features.length;
+        var sum = features.reduce(function (s, f) {
+          var v = f.properties.n_dead;
+          return s + (typeof v === 'number' ? v : (parseFloat(v) || 0));
+        }, 0);
+        if (countsRoot) {
+          countsRoot.querySelector('.records-val').textContent = n.toLocaleString();
+          countsRoot.querySelector('.deaths-val').textContent  = Math.round(sum).toLocaleString();
+        }
+      }
+
+      // ---- Monthly-bin histogram of deaths, per source ----
+      // Bin count is source-dependent: UNITED 1993–2026 (408 bins), IOM
+      // 2014–2026 (156 bins). When the user switches source, the slider
+      // range and the histogram both rebuild against the new range.
+      var histCache = { united: null, iom: null };
+
+      function buildHistData() {
+        var r = FIXED_RANGE;
+        var nMonths = (r.max - r.min + 1) * 12;
+        ['united', 'iom'].forEach(function (src) {
+          var counts = new Array(nMonths).fill(0);
+          allFeatures[src].forEach(function (f) {
+            var p = f.properties;
+            if (!p.date || p.year < r.min || p.year > r.max) return;
+            var month = parseInt(p.date.substring(5, 7), 10) || 1;
+            var idx   = (p.year - r.min) * 12 + (month - 1);
+            if (idx >= 0 && idx < nMonths) {
+              counts[idx] += (+p.n_dead || 0);
+            }
+          });
+          histCache[src] = { range: r, nMonths: nMonths, counts: counts };
+        });
+      }
+
+      var SVG_NS = 'http://www.w3.org/2000/svg';
+
+      function drawHistogram() {
+        if (!histCache.united) return;
+        var data    = histCache[currentSource];
+        var counts  = data.counts;
+        var nMonths = data.nMonths;
+        var maxN    = 0;
+        for (var i = 0; i < nMonths; i++) {
+          if (counts[i] > maxN) maxN = counts[i];
+        }
+        if (maxN === 0) maxN = 1;
+
+        // Fixed viewBox + non-uniform aspect ratio: all coords below are in
+        // 0–100 percentage space, the SVG stretches to its rendered size.
+        histSvg.setAttribute('viewBox', '0 0 100 100');
+        histSvg.setAttribute('preserveAspectRatio', 'none');
+
+        var slotW   = 100 / nMonths;             // width of one month slot (%)
+        var bw      = slotW * 0.85;              // visible bar width (%)
+        var fromIdx = (yearFrom - data.range.min) * 12;
+        var toIdx   = (yearTo   - data.range.min) * 12 + 11;
+
+        // Wipe and rebuild children. createElementNS guarantees SVG namespace.
+        while (histSvg.firstChild) histSvg.removeChild(histSvg.firstChild);
+
+        for (var k = 0; k < nMonths; k++) {
+          var c = counts[k];
+          if (c === 0) continue;
+          var bh    = (c / maxN) * 99;
+          var bx    = k * slotW + slotW * 0.075;
+          var by    = 100 - bh;
+          var inRng = (k >= fromIdx && k <= toIdx);
+          var fill  = inRng ? '#7A1B1B' : '#c8c2c2';
+
+          var rect = document.createElementNS(SVG_NS, 'rect');
+          rect.setAttribute('class',  'bar');
+          rect.setAttribute('x',      bx.toFixed(4));
+          rect.setAttribute('y',      by.toFixed(2));
+          rect.setAttribute('width',  bw.toFixed(4));
+          rect.setAttribute('height', bh.toFixed(2));
+          rect.setAttribute('fill',   fill);
+          histSvg.appendChild(rect);
+        }
+      }
+
+      // ---- Axis ticks (every 5 years across the fixed 1993-2026 rail) ----
+      function drawAxis() {
+        var r = FIXED_RANGE;
+        axisEl.innerHTML = '';
+        [1995, 2000, 2005, 2010, 2015, 2020, 2025].forEach(function (yr) {
+          var pct  = ((yr - r.min) / (r.max - r.min)) * 100;
+          var span = document.createElement('span');
+          span.textContent = yr;
+          span.style.left  = pct.toFixed(2) + '%';
+          axisEl.appendChild(span);
+        });
+      }
+
+      // ---- Render ----
+      function render() {
+        var feats = allFeatures[currentSource].filter(function (f) {
+          var p = f.properties;
+          if (p.year < yearFrom || p.year > yearTo) return false;
+          if (originFilter.size > 0 && !originFilter.has(p.origin_macro || 'unknown')) return false;
+          if (routeFilter.size  > 0 && !routeFilter.has(p.route)) return false;
+          var cm = p.cause_macro || 'other';
+          if (causeFilter.size > 0 && !causeFilter.has(cm)) return false;
+          return true;
+        });
+        if (activeLayer) { map.removeLayer(activeLayer); activeLayer = null; }
+        if (feats.length) {
+          activeLayer = buildLayer(feats).addTo(map);
+        }
+        updateCounts(feats);
+        drawHistogram();
+      }
+
+      var axisEl = document.querySelector('.year-axis');
+      drawAxis();
+
+      // ---- Load both GeoJSONs once, then render ----
+      // The query string forces the browser to refetch when the data is rebuilt.
+      var DATA_VERSION = '2026-05-04-coordfix';
+      Promise.all([
+        fetch('data/incidents_united.geojson?v=' + DATA_VERSION).then(function (r) { return r.json(); }),
+        fetch('data/incidents_iom.geojson?v=' + DATA_VERSION).then(function (r) { return r.json(); })
+      ]).then(function (results) {
+        allFeatures.united = results[0].features;
+        allFeatures.iom    = results[1].features;
+        initChoices();
+        populateRouteChoices();
+        buildHistData();
+        render();
+      });
+
+      // Re-draw the histogram on resize so the bar widths stay aligned with
+      // the slider rail.
+      window.addEventListener('resize', function () { drawHistogram(); });
+
+      // ---- Source toggle ----
+      // Slider rail is fixed at 1993-2026. When switching to IOM, snap
+      // the lower thumb up to 2014 (IOM's first year) so the user lands
+      // on data immediately; the upper thumb is left alone. Switching
+      // back to UNITED preserves whatever selection is current.
+      var IOM_MIN_YEAR = 2014;
+      document.querySelectorAll('.map-toggle .layer-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          document.querySelectorAll('.map-toggle .layer-btn').forEach(function (b) {
+            b.classList.remove('active');
+          });
+          btn.classList.add('active');
+          currentSource = btn.dataset.source;
+
+          if (currentSource === 'iom' && yearFrom < IOM_MIN_YEAR) {
+            // Triggers 'update' → render() automatically.
+            sliderEl.noUiSlider.set([IOM_MIN_YEAR, yearTo]);
+          } else {
+            render();
+          }
+        });
+      });
+
+      // ---- Year slider (noUiSlider, dual-thumb) ----
+      // Range fixed at 1993-2026 for both sources.
+      noUiSlider.create(sliderEl, {
+        start: [YEAR_MIN, YEAR_MAX],
+        connect: true,
+        step: 1,
+        range: { min: YEAR_MIN, max: YEAR_MAX },
+        format: {
+          to:   function (value) { return Math.round(value); },
+          from: function (value) { return Number(value); }
+        }
+      });
+
+      sliderEl.noUiSlider.on('update', function (values) {
+        yearFrom = parseInt(values[0], 10);
+        yearTo   = parseInt(values[1], 10);
+        fromVal.textContent = yearFrom;
+        toVal.textContent   = yearTo;
+        render();
+      });
+
+      resetBtn.addEventListener('click', function () {
+        sliderEl.noUiSlider.set([YEAR_MIN, YEAR_MAX]);
+      });
+
+      // ---- Choices.js multi-select dropdowns ----
+      // Origin and cause have static option lists in the HTML. Route options
+      // are populated from the loaded GeoJSONs and re-populated on source
+      // toggle (IOM and UNITED use different route vocabularies).
+      var originChoices = null, routeChoices = null, causeChoices = null;
+
+      function initChoices() {
+        if (typeof Choices === 'undefined') return;
+        var common = {
+          removeItemButton:       true,
+          shouldSort:             false,
+          placeholder:            true,
+          placeholderValue:       'All',
+          searchPlaceholderValue: 'Search…',
+          allowHTML:              false
+        };
+        originChoices = new Choices(originSelect, Object.assign({}, common,
+          { searchEnabled: false }));
+        causeChoices  = new Choices(causeSelect,  Object.assign({}, common,
+          { searchEnabled: false }));
+        // Tag the cause wrapper so the color-swatch CSS scopes to it only.
+        causeChoices.containerOuter.element.classList.add('cause-choices');
+        routeChoices = new Choices(routeSelect, Object.assign({}, common,
+          { searchEnabled: true }));
+
+        originSelect.addEventListener('change', function () {
+          originFilter = new Set(originChoices.getValue(true));
+          render();
+        });
+        causeSelect.addEventListener('change', function () {
+          causeFilter = new Set(causeChoices.getValue(true));
+          render();
+        });
+        routeSelect.addEventListener('change', function () {
+          routeFilter = new Set(routeChoices.getValue(true));
+          render();
+        });
+      }
+
+      // Union of route values across both datasets (UNITED routes are
+      // homogenised to the IOM `Route` vocabulary in 02_build_geojson.R, so
+      // they share the same labels). Sorted by combined frequency desc so
+      // the most common routes float to the top of the dropdown. Built once
+      // after data loads — survives source toggles, since the vocabulary is
+      // now shared.
+      function populateRouteChoices() {
+        if (!routeChoices) return;
+        var counts = {};
+        ['united', 'iom'].forEach(function (src) {
+          allFeatures[src].forEach(function (f) {
+            var v = f.properties.route;
+            if (v == null || v === '') return;
+            counts[v] = (counts[v] || 0) + 1;
+          });
+        });
+        var sorted = Object.keys(counts).sort(function (a, b) {
+          return counts[b] - counts[a];
+        });
+        var opts = sorted.map(function (v) {
+          return { value: v, label: v };
+        });
+        routeChoices.clearStore();
+        routeChoices.setChoices(opts, 'value', 'label', true);
+      }
+    });
+  </script>
+</body>
+</html>
