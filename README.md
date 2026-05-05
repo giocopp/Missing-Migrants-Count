@@ -1,74 +1,61 @@
-# Data Bit 1 — IOM and UNITED on Europe's border
+# Data Bit 1 — How are dead and missing migrants at sea counted?
 
 **Author:** Giorgio Coppola · **Date:** April 2026 · GRAD-E1493 Data Journalism, Hertie School
 
-A short interactive piece comparing two records of migrant deaths on routes leading to Europe: the **IOM Missing Migrants Project** (2014–2026) and the **UNITED for Intercultural Action** *List of Refugee Deaths* (1993–2026). The Leaflet map carries a UNITED ↔ IOM toggle and a year-range slider so the reader can see how the two organisations' coverage and counts differ across geography and time.
+A short interactive piece on the **IOM Missing Migrants Project** record (2014–2026), restricted to the four sea corridors to Europe — Central, Western and Eastern Mediterranean, plus the Western Africa / Atlantic route to the Canary Islands. The map has a month-level period slider (with month/year dropdowns) and filters for region of origin, sea corridor and cause of death.
 
-## Read the piece in the browser
+An earlier version compared IOM with **UNITED for Intercultural Action**'s *List of Refugee Deaths*. UNITED was dropped from the map after a coord audit (see *Methodology*); its CSV and GeoJSON still ship with the repo.
 
-**[Open the page on raw.githack.com](https://raw.githack.com/data-journalism-26/data-bit-1-giorgio/main/article.html)**
+## View
 
-The page renders best on a real HTTP origin (like raw.githack). If you open `article.html` from disk via `file://`, the GeoJSON files for the interactive map will be blocked by the browser's same-origin policy. Locally, run a small server first:
+**[Open on raw.githack.com](https://raw.githack.com/data-journalism-26/data-bit-1-giorgio/main/article.html)** · or run a local server:
 
 ```bash
 python3 -m http.server 8000
-# then open http://localhost:8000/article.html
+# http://localhost:8000/article.html
 ```
 
-## Repository layout
+(Opening `article.html` directly via `file://` will fail — `fetch()` can't read local GeoJSON.)
+
+## Layout
 
 ```
 .
-├── article.html                       # the article
+├── article.html                  # the page (loads incidents_iom.geojson)
 ├── data/
-│   ├── iom_europe.csv                 # IOM records, filtered to Europe-bound routes
-│   ├── united_europe.csv              # UNITED records, Europe-bound geographic envelope
-│   ├── incidents_iom.geojson          # built from iom_europe.csv (consumed by the map)
-│   └── incidents_united.geojson       # built from united_europe.csv
+│   ├── iom_europe.csv            # IOM, filtered to Europe-bound routes
+│   ├── united_europe.csv         # UNITED, Europe-bound envelope (not on map)
+│   ├── incidents_iom.geojson     # built from iom_europe.csv
+│   └── incidents_united.geojson  # built from united_europe.csv
 ├── scripts/
-│   ├── 01_filter_europe.R             # how the two CSVs were derived (private RDS source)
-│   └── 02_build_geojson.R             # CSVs -> GeoJSON for the web map
-├── Makefile                           # `make` rebuilds the GeoJSON; see "How to reproduce"
-├── .gitignore
+│   ├── 01_filter_europe.R        # CSVs from private RDS source
+│   └── 02_build_geojson.R        # CSVs → GeoJSON
+├── Makefile
 └── README.md
 ```
 
-## How to reproduce
-
-The data work is wired into a `Makefile`. From the project root:
+## Reproduce
 
 ```bash
-make            # rebuild the two GeoJSON files (default)
-make geojson    # same as above
-make help       # list all targets
+make            # rebuild both GeoJSONs
+make filter     # re-derive CSVs from private RDS (skip if CSVs are present)
 ```
 
-**One step is kept out of `make all`** and must be invoked explicitly because it requires the author's private thesis RDS files:
+Requires R ≥ 4.3 with `dplyr`, `readr`, `sf`, `lubridate`, `stringr`, `rnaturalearth`.
 
-```bash
-make filter     # re-derive the CSVs from the thesis RDS files
-```
+## Sources
 
-**Requirements:**
+- **IOM Missing Migrants Project** — <https://missingmigrants.iom.int/downloads>. Incident-level data; cumulative roll-ups dropped so events aren't double-counted.
+- **UNITED — *List of Refugee Deaths*** — <https://unitedagainstrefugeedeaths.eu/about-the-campaign/about-the-united-list-of-deaths/>. In repo, not on the map.
+- **Basemap** — CartoDB Voyager (no labels), © OpenStreetMap contributors, ODbL.
 
-- R (≥ 4.3) with `dplyr`, `readr`, `sf`, `lubridate`
+## Methodology (brief)
 
-## Data sources
-
-The two CSVs (`data/iom_europe.csv`, `data/united_europe.csv`) ship with the repo so the build is reproducible without registering with the original sources.
-
-- **IOM Missing Migrants Project.** Incident-level data from the International Organization for Migration. Downloadable as CSV from <https://missingmigrants.iom.int/downloads>. The CSV in this repo is filtered to routes leading to Europe (Central / Western / Eastern Mediterranean, Western Africa Atlantic to the Canaries, Western Balkans, Belarus–EU border, the Türkiye corridors, Mainland Europe to the UK, Sahara Desert crossing, Italy–France, Ukraine–Europe, Sea crossings to Mayotte) and excludes IOM's own *Cumulative Incident* roll-ups so events are not double-counted.
-- **UNITED for Intercultural Action — *List of Refugee Deaths*.** A public dataset of refugee and migrant deaths recorded since 1993, distributed by the network. Available at <https://unitedagainstrefugeedeaths.eu/about-the-campaign/about-the-united-list-of-deaths/>. UNITED's mandate is Europe-bound by construction; the CSV in this repo keeps every record that geocodes inside the Europe-bound envelope (lon −25° to 55°, lat 10° to 75°).
-- **Basemap.** CartoDB Voyager (no labels) tiles via the Leaflet CDN, © OpenStreetMap contributors, used under ODbL.
-
-## Methodology
-
-Both datasets often record **one row per individual death** rather than per event. The Parndorf truck case in 2015, for example, appears in UNITED as 68 separate single-death rows that share the same date, place and coordinate. To make the map readable, rows that share a date and a coordinate are aggregated into a single feature whose `n_dead` is the sum of those rows — so each circle on the map corresponds to one *event*, not to one row. The `n_rows` field on each feature reports how many raw rows were merged.
-
-For IOM, the filter keeps incidents tagged with a Europe-bound `Route` value, drops the `Cumulative Incident` rows (IOM's own multi-event roll-ups), and excludes records that geocode outside the Europe-bound envelope. For UNITED, no route filter is applied (the dataset is Europe-bound by construction); the same geographic envelope is applied for visual consistency. Five UNITED rows with corrupt longitudes (values around −370 and one of −17 266 954) are dropped.
-
-The resulting figures are **49 777 dead or missing across 6 463 events** for IOM (2014–2026) and **69 748 deaths across 6 612 events** for UNITED (1993–2026). The two are not directly comparable: they cover different windows, count different things (UNITED keeps deportation-route deaths and other categories IOM does not), and use different sourcing criteria. That difference is the point of the piece.
+- **Sea-routes scope.** GeoJSONs are restricted to the four sea corridors connecting to Europe. Land routes and post-arrival deaths are filtered out at build time.
+- **One feature = one event.** Both datasets often record one row per individual death. Rows that share a coordinate and date are aggregated; `n_dead` is summed.
+- **IOM coord cleanup.** Each (lat, lon) is checked against the named country of incident; rows farther than 500 km are tested for a longitude sign-flip, lat-lon swap, or both, and the variant kept only if it lands within 200 km of the country polygon. Unrescuable rows are dropped.
+- **Why UNITED isn't on the map.** UNITED tags rows by migration corridor (`crossing_countries`), not by where the death actually happened, which puts Sahara desert deaths into the Central Med bucket and post-arrival deaths inside Europe onto sea-route corridors. A coord-envelope check fixed many of these but residual errors (digit-drop typos, etc.) made the dot-on-corridor reading unreliable, so the source was excluded.
 
 ## AI disclosure
 
-Claude Code (Anthropic) was used to support: the design of the HTML page; the troubleshooting and refinement of the code that produces the interactive map; and the reproducibility pipeline. Editorial decisions, data wrangling, analysis and interpretation, as well as the writing are the author's.
+Claude Code (Anthropic) was used to support the design of the page, the troubleshooting and refinement of the map code, and the reproducibility pipeline. Editorial decisions, data wrangling, analysis, interpretation, and writing are the author's.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Data Bit 1: How IOM and UNITED count the dead on Europe's border</title>
+  <title>How are dead and missing migrants at sea counted? — Data Bit 1</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" />
@@ -210,25 +210,10 @@
       color: var(--muted);
       margin-right: 4px;
     }
-    .map-toggle button {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      padding: 6px 14px;
-      cursor: pointer;
+    .map-toggle .active-source {
       color: var(--text);
-      font-size: 13px;
-      line-height: 1;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-    .map-toggle button:hover {
-      background: #efefef;
-      border-color: #b9b9b9;
-    }
-    .map-toggle button.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
+      font-weight: 600;
+      letter-spacing: 0.005em;
     }
     .leaflet-tooltip.incident-tip {
       background: #fff;
@@ -249,17 +234,100 @@
     .leaflet-tooltip.incident-tip .deaths {
       color: var(--accent); font-weight: 700;
     }
-
-    /* Map title (sits above the map, inside the figure) */
-    .map-title {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.35;
-      padding: 0 4px 12px;
-      letter-spacing: -0.005em;
+    /* Secondary tooltip rows (route / origin / aggregation / precision) */
+    .leaflet-tooltip.incident-tip .row {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 3px;
     }
+    .leaflet-tooltip.incident-tip .row .lab {
+      color: #9a9a9a;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      margin-right: 4px;
+    }
+    .leaflet-tooltip.incident-tip .precision-flag {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 6px;
+      background: #f3eede;
+      color: #8a6a1a;
+      border-radius: 3px;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+    }
+
+    /* On-map cause-of-death legend. Mounted via Leaflet's L.control so the
+       outer wrapper handles positioning; this class only styles the panel. */
+    .leaflet-control.map-legend,
+    .map-legend {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 8px 10px 9px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 11.5px;
+      line-height: 1.4;
+      color: var(--text);
+      max-width: 210px;
+    }
+    .map-legend .legend-title {
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .map-legend .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 1.5px 0;
+    }
+    .map-legend .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+    }
+    .map-legend .legend-foot {
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px solid #ececec;
+      color: var(--muted);
+      font-size: 10.5px;
+      line-height: 1.4;
+    }
+    .map-legend .size-row {
+      display: flex; align-items: flex-end; gap: 6px; margin-top: 3px;
+    }
+    .map-legend .size-dot {
+      border-radius: 50%;
+      background: #b8b3b3;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+      flex: 0 0 auto;
+    }
+
+    /* "Showing X / Y events" caption above the map (replaces static title).
+       Updates from JS as source / years / filters change. */
+    .source-caption {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      color: var(--text);
+      padding: 0 4px 12px;
+    }
+    .source-caption .src-name {
+      font-weight: 700;
+      letter-spacing: 0.005em;
+    }
+    .source-caption .src-name.iom    { color: #2E5984; }
+    .source-caption .src-meta { color: var(--muted); }
 
     /* Year-range slider bar (sits below the source toggle) */
     .year-bar {
@@ -322,6 +390,31 @@
       top: 0;
       transform: translateX(-50%);
     }
+    /* Period dropdowns: a pair of (month, year) selects on each side, so the
+       user can pick start and end directly without dragging the slider. The
+       slider and these dropdowns share the same state — moving one updates
+       the other. */
+    .period-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .period-select select {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--text);
+      cursor: pointer;
+      line-height: 1.1;
+    }
+    .period-select select:hover  { border-color: #b9b9b9; }
+    .period-select select:focus  { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .period-select .ps-year      { font-variant-numeric: tabular-nums; }
+    .period-select .period-sep   { color: var(--muted); padding: 0 2px; }
     .year-bar button.reset-years {
       background: #fff;
       border: 1px solid var(--line);
@@ -401,6 +494,17 @@
       border: 1px solid #b9b9b9;
       border-radius: 4px;
       font-size: 13px;
+      /* Lift above Leaflet's panes (top out around z-index 1000) so the
+         dropdown isn't painted under the map when it opens. */
+      z-index: 1200;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
+    }
+    /* When a dropdown is open, raise its parent stacking context so the
+       absolutely-positioned list isn't clipped by sibling stacking contexts
+       (the map controls in particular). */
+    .filter-bar .choices.is-open {
+      position: relative;
+      z-index: 1200;
     }
     .filter-bar .choices__list--dropdown .choices__item--selectable {
       padding: 6px 10px;
@@ -584,28 +688,29 @@
   <article>
     <div class="kicker">Data Bit 1 · E1493 Data Journalism 2026</div>
 
-    <h1>[Title — placeholder]</h1>
+    <h1>How are dead and missing migrants at sea counted?</h1>
 
-    <p class="deck">[Subtitle — placeholder]</p>
+    <p class="deck">A verified ledger of migrant deaths on the four sea corridors to Europe, 2014–2026.</p>
 
     <div class="byline">
       <span class="author">Giorgio Coppola</span>
       <span>April 2026</span>
     </div>
 
-    <p class="lede">[Lede paragraph — placeholder. Set up the story: two organisations counting deaths on routes to Europe, with very different methodologies and very different numbers.]</p>
-
-    <p>[Body paragraph — placeholder. Explain why these counts matter, and the broad scope of the picture: 33 years of UNITED records, 12 of IOM, every Europe-bound corridor.]</p>
-
-    <p>[Body paragraph — placeholder. Briefly introduce the two sources and how they collect data.]</p>
+    <p class="lede"><!-- TODO: lede --></p>
 
     <figure class="leaflet-figure">
-      <div class="map-title">Migrant deaths on routes to Europe, by source — 1993–2026</div>
-      <div id="incident-map" role="img" aria-label="Interactive map of recorded migrant deaths on routes to Europe, with a year-range selector and a toggle between the IOM Missing Migrants Project and the UNITED List of Refugee Deaths."></div>
+      <div class="source-caption">
+        <span>Showing</span>
+        <span class="src-name iom">IOM</span>'s
+        <span class="src-meta"><span class="src-count">—</span> events
+        between <span class="src-from">2014</span> and <span class="src-to">2026</span>.</span>
+      </div>
+      <div id="incident-map" role="img" aria-label="Interactive map of migrant deaths recorded by the IOM Missing Migrants Project on the four sea corridors leading to Europe — Central, Western and Eastern Mediterranean and the Atlantic route to the Canary Islands. A year-range slider and three filter dropdowns control the visible window."></div>
       <div class="map-toggle">
         <span class="label">Source:</span>
-        <button class="layer-btn active" data-source="united">UNITED</button>
-        <button class="layer-btn" data-source="iom">IOM</button>
+        <span class="active-source"
+              title="IOM Missing Migrants Project. UN agency record kept since 2014. Method: each incident verified through coast-guard reports, IOM country offices, news, sometimes survivor testimony.">IOM Missing Migrants Project · 2014–2026</span>
         <div class="map-counts">
           <span class="val records-val">—</span> recorded events
           <span class="sep">·</span>
@@ -613,16 +718,23 @@
         </div>
       </div>
       <div class="year-bar">
-        <span class="year-label">Years</span>
-        <span class="year-readout"><span class="year-from-val">1993</span> – <span class="year-to-val">2026</span></span>
+        <span class="year-label">Period</span>
+        <span class="period-select" aria-label="Period range">
+          <select class="ps-month ps-month-from" aria-label="From month"></select>
+          <select class="ps-year ps-year-from"  aria-label="From year"></select>
+          <span class="period-sep">–</span>
+          <select class="ps-month ps-month-to"  aria-label="To month"></select>
+          <select class="ps-year ps-year-to"    aria-label="To year"></select>
+        </span>
         <div class="slider-wrap">
           <svg class="year-hist" aria-hidden="true"
                width="100%" height="100%"
                preserveAspectRatio="none"></svg>
-          <div class="year-slider" aria-label="Year range"></div>
+          <div class="year-slider" aria-label="Period range slider"></div>
           <div class="year-axis" aria-hidden="true"></div>
         </div>
-        <button class="reset-years" type="button">Reset</button>
+        <button class="reset-years" type="button"
+                title="Clears the period range and all three filters (origin, route, cause).">Reset all</button>
       </div>
       <div class="filter-bar">
         <div class="filter-group">
@@ -639,10 +751,10 @@
           </select>
         </div>
         <div class="filter-group">
-          <label class="filter-label" for="route-select">Migration route</label>
+          <label class="filter-label" for="route-select">Sea corridor</label>
           <select id="route-select" class="route-select" multiple
-                  aria-label="Filter by migration route">
-            <!-- options populated dynamically based on the active source -->
+                  aria-label="Filter by sea corridor">
+            <!-- options populated dynamically from the loaded GeoJSONs -->
           </select>
         </div>
         <div class="filter-group">
@@ -658,26 +770,17 @@
           </select>
         </div>
       </div>
-      <figcaption><strong>Two organisations, two pictures of the same border.</strong> Each circle marks a reported event; size scales with the number of dead or missing. UNITED has been logging deaths of people trying to reach Europe since 1993, IOM since 2014. Hover a circle for details. Drag the year sliders to filter the visible window.</figcaption>
+      <figcaption><strong>The IOM record at a glance.</strong> Each circle marks a reported event; size scales with the number of dead or missing. Hover a circle for details. Drag the slider handles, or use the month/year dropdowns, to set the visible window.</figcaption>
     </figure>
 
-    <p>[Body paragraph — placeholder. Talk about how the two pictures differ — what UNITED captures that IOM misses, and vice versa.]</p>
-
-    <p>[Body paragraph — placeholder. Mediterranean focus: zoom into the central corridor and discuss what the same disagreement looks like at a tighter scale.]</p>
-
-    <p>[Closing paragraph — placeholder.]</p>
+    <!-- TODO: body prose -->
 
     <hr class="rule">
 
     <p class="sources">
       <strong>Data and methods.</strong>
-      Death records are from the <a href="https://missingmigrants.iom.int/">IOM Missing Migrants Project</a> (2014–2026, filtered to corridors leading to Europe via IOM's <em>Route</em> field) and from <a href="https://unitedagainstrefugeedeaths.eu/">UNITED for Intercultural Action</a>'s <em>List of Refugee Deaths</em> (1993–2026, Europe-bound by NGO mandate). Both datasets often record one row per individual death rather than per event; rows that share a coordinate and date are aggregated into a single incident, summing dead/missing — so each circle on the map corresponds to one event, not to one row. UNITED's <em>crossing_countries</em> field (semicolon-joined ISO-2 codes) is mapped to IOM's <em>Route</em> labels so the route filter shares one vocabulary across the two sources; ambiguous Spain-Africa entries are split between Western Mediterranean and the Atlantic-to-Canaries route by latitude. Records that geocode outside the Europe-bound envelope (lon −25° to 55°, lat 10° to 75°) are excluded for clarity. Basemap from <a href="https://carto.com/attribution/">CartoDB</a> · OpenStreetMap contributors, used under ODbL.
+      Death records are from the <a href="https://missingmigrants.iom.int/">IOM Missing Migrants Project</a> (2014–2026), filtered to the four sea corridors that lead to Europe — Central, Western and Eastern Mediterranean, plus the Western Africa / Atlantic route to the Canary Islands. A small number of recorded incident coordinates fall far from the named country of incident (sign-flipped longitudes, swapped lat/lon, or shared placeholder coordinates); those are auto-corrected where the fix is unambiguous and dropped otherwise. Basemap from <a href="https://carto.com/attribution/">CartoDB</a> · OpenStreetMap contributors, used under ODbL.
       All code, data and replication package are at <a href="https://github.com/data-journalism-26/data-bit-1-giorgio">github.com/data-journalism-26/data-bit-1-giorgio</a>.
-    </p>
-
-    <p class="sources">
-      <strong>References.</strong>
-      <em>[Citations — placeholder]</em>
     </p>
 
   </article>
@@ -690,11 +793,20 @@
     window.addEventListener('load', function () {
       if (typeof L === 'undefined') return;  // Leaflet failed to load
 
-      var YEAR_MIN = 1993;
+      var YEAR_MIN = 2014;       // IOM coverage starts here
       var YEAR_MAX = 2026;
-      // Both sources share this rail so the visual stays comparable.
-      // IOM has no data before 2014 — that empty stretch is the point.
+      var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun',
+                         'Jul','Aug','Sep','Oct','Nov','Dec'];
+      var N_MONTHS    = (YEAR_MAX - YEAR_MIN + 1) * 12;   // 156
       var FIXED_RANGE = { min: YEAR_MIN, max: YEAR_MAX };
+
+      // Slider value = months-since-Jan-YEAR_MIN (0 .. N_MONTHS-1).
+      function idxToYM(idx)         { return { year: YEAR_MIN + Math.floor(idx / 12), month: (idx % 12) + 1 }; }
+      function ymToIdx(year, month) { return (year - YEAR_MIN) * 12 + (month - 1); }
+      function fmtMY(idx) {
+        var ym = idxToYM(idx);
+        return MONTH_NAMES[ym.month - 1] + ' ' + ym.year;
+      }
 
       var map = L.map('incident-map', {
         center: [42.0, 14.0],     // Centred on Italy, fits Mediterranean + most of Europe
@@ -738,13 +850,86 @@
         return Math.max(3.5, Math.sqrt(Math.max(1, n)) * 1.4);
       }
 
+      // ---- On-map legend ----------------------------------------------------
+      // Decodes dot colour (cause of death) and dot size (number of dead).
+      // Mounted via L.control so Leaflet handles the corner anchoring.
+      var legend = L.control({ position: 'bottomleft' });
+      legend.onAdd = function () {
+        var div = L.DomUtil.create('div', 'map-legend');
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+
+        var rows = [
+          ['drowning', CAUSE_LABELS.drowning],
+          ['vehicle',  CAUSE_LABELS.vehicle],
+          ['violence', CAUSE_LABELS.violence],
+          ['exposure', CAUSE_LABELS.exposure],
+          ['sickness', CAUSE_LABELS.sickness],
+          ['other',    CAUSE_LABELS.other]
+        ];
+        var html = '<div class="legend-title">Cause of death</div>';
+        rows.forEach(function (r) {
+          html += '<div class="legend-row">'
+            + '<span class="swatch" style="background:' + CAUSE_COLORS[r[0]] + '"></span>'
+            + '<span>' + r[1] + '</span></div>';
+        });
+        html += '<div class="legend-foot">'
+          + 'Dot size = number of dead or missing'
+          + '<div class="size-row">'
+          +   '<span class="size-dot" style="width:7px;height:7px;"></span>'
+          +   '<span class="size-dot" style="width:11px;height:11px;"></span>'
+          +   '<span class="size-dot" style="width:18px;height:18px;"></span>'
+          +   '<span style="margin-left:4px;">1 &middot; 50 &middot; 500+</span>'
+          + '</div>'
+          + '</div>';
+        div.innerHTML = html;
+        return div;
+      };
+      legend.addTo(map);
+
+      var ORIGIN_LABELS = {
+        sub_saharan_africa: 'Sub-Saharan Africa',
+        northern_africa:    'Northern Africa',
+        middle_east:        'Middle East / Levant',
+        south_central_asia: 'South / Central Asia',
+        europe:             'Europe',
+        other:              'Other',
+        unknown:            'Unknown'
+      };
+      // UNITED labels date precision per row. IOM is always 'day'.
+      // Anything other than 'day' triggers an "approximate" flag on the tip.
+      var PRECISION_FLAGS = {
+        month:     'Date approximate — month only',
+        year_only: 'Date approximate — year only',
+        imprecise: 'Date approximate — exact day unknown'
+      };
+
+      function escapeHtml(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
       function tip(p) {
-        var loc = [p.location, p.country].filter(Boolean).join(', ');
+        var loc        = [p.location, p.country].filter(Boolean).join(', ');
         var macroLabel = CAUSE_LABELS[p.cause_macro] || 'Unknown';
-        return '<div class="meta">' + p.date + (loc ? ' &middot; ' + loc : '') + '</div>'
-             + '<span class="deaths">' + p.n_dead + '</span> dead or missing'
-             + ' &middot; <em>' + macroLabel + '</em>'
-             + (p.cause ? '<br>' + p.cause : '');
+        var origin     = ORIGIN_LABELS[p.origin_macro] || 'Unknown';
+        var html =
+          '<div class="meta">' + escapeHtml(p.date)
+            + (loc ? ' &middot; ' + escapeHtml(loc) : '') + '</div>'
+          + '<span class="deaths">' + p.n_dead + '</span> dead or missing'
+          + ' &middot; <em>' + escapeHtml(macroLabel) + '</em>';
+        if (p.cause) html += '<br>' + escapeHtml(p.cause);
+        if (p.route) {
+          html += '<div class="row"><span class="lab">Route</span>' + escapeHtml(p.route) + '</div>';
+        }
+        html += '<div class="row"><span class="lab">Origin</span>' + escapeHtml(origin) + '</div>';
+        if (p.n_rows && p.n_rows > 1) {
+          html += '<div class="row"><span class="lab">Aggregation</span>'
+               + p.n_rows + ' individual records collapsed into this event</div>';
+        }
+        var flag = PRECISION_FLAGS[p.date_precision];
+        if (flag) html += '<div class="precision-flag">' + escapeHtml(flag) + '</div>';
+        return html;
       }
 
       function buildLayer(features) {
@@ -777,24 +962,26 @@
       // The three filter sets follow an "empty = no filter" convention: a
       // feature passes when the filter set is empty OR the feature's value
       // is in the set. This matches Choices.js's natural empty state.
-      var allFeatures = { united: [], iom: [] };
+      var allFeatures = { iom: [] };
       var activeLayer = null;
-      var currentSource = 'united';
-      var yearFrom = YEAR_MIN, yearTo = YEAR_MAX;
+      var currentSource = 'iom';
+      var monthFromIdx = 0, monthToIdx = N_MONTHS - 1;
       var originFilter = new Set();
       var routeFilter  = new Set();
       var causeFilter  = new Set();
 
       // ---- Counts / DOM ----
       var countsRoot   = document.querySelector('.map-counts');
-      var fromVal      = document.querySelector('.year-from-val');
-      var toVal        = document.querySelector('.year-to-val');
       var sliderEl     = document.querySelector('.year-slider');
       var histSvg      = document.querySelector('.year-hist');
       var resetBtn     = document.querySelector('.reset-years');
       var originSelect = document.querySelector('#origin-select');
       var routeSelect  = document.querySelector('#route-select');
       var causeSelect  = document.querySelector('#cause-select');
+      var captionEl    = document.querySelector('.source-caption');
+      var captionCount = captionEl && captionEl.querySelector('.src-count');
+      var captionFrom  = captionEl && captionEl.querySelector('.src-from');
+      var captionTo    = captionEl && captionEl.querySelector('.src-to');
 
       function updateCounts(features) {
         var n = features.length;
@@ -806,37 +993,38 @@
           countsRoot.querySelector('.records-val').textContent = n.toLocaleString();
           countsRoot.querySelector('.deaths-val').textContent  = Math.round(sum).toLocaleString();
         }
+        if (captionCount) captionCount.textContent = n.toLocaleString();
       }
 
-      // ---- Monthly-bin histogram of deaths, per source ----
-      // Bin count is source-dependent: UNITED 1993–2026 (408 bins), IOM
-      // 2014–2026 (156 bins). When the user switches source, the slider
-      // range and the histogram both rebuild against the new range.
-      var histCache = { united: null, iom: null };
+      // Update the "Showing IOM's Y events between Mon YYYY and Mon YYYY."
+      // caption above the map. Called on every period change. The event count
+      // itself is set inside updateCounts() so it stays in sync with the
+      // visible set.
+      function updateSourceCaption() {
+        if (captionFrom) captionFrom.textContent = fmtMY(monthFromIdx);
+        if (captionTo)   captionTo.textContent   = fmtMY(monthToIdx);
+      }
+
+      // ---- Monthly-bin histogram of deaths (IOM, 2014–2026 = 156 bins) ----
+      var histCache = { iom: null };
 
       function buildHistData() {
-        var r = FIXED_RANGE;
-        var nMonths = (r.max - r.min + 1) * 12;
-        ['united', 'iom'].forEach(function (src) {
-          var counts = new Array(nMonths).fill(0);
-          allFeatures[src].forEach(function (f) {
-            var p = f.properties;
-            if (!p.date || p.year < r.min || p.year > r.max) return;
-            var month = parseInt(p.date.substring(5, 7), 10) || 1;
-            var idx   = (p.year - r.min) * 12 + (month - 1);
-            if (idx >= 0 && idx < nMonths) {
-              counts[idx] += (+p.n_dead || 0);
-            }
-          });
-          histCache[src] = { range: r, nMonths: nMonths, counts: counts };
+        var counts = new Array(N_MONTHS).fill(0);
+        allFeatures.iom.forEach(function (f) {
+          var p = f.properties;
+          if (!p.date || p.year < YEAR_MIN || p.year > YEAR_MAX) return;
+          var month = parseInt(p.date.substring(5, 7), 10) || 1;
+          var idx   = ymToIdx(p.year, month);
+          if (idx >= 0 && idx < N_MONTHS) counts[idx] += (+p.n_dead || 0);
         });
+        histCache.iom = { nMonths: N_MONTHS, counts: counts };
       }
 
       var SVG_NS = 'http://www.w3.org/2000/svg';
 
       function drawHistogram() {
-        if (!histCache.united) return;
-        var data    = histCache[currentSource];
+        if (!histCache.iom) return;
+        var data    = histCache.iom;
         var counts  = data.counts;
         var nMonths = data.nMonths;
         var maxN    = 0;
@@ -850,10 +1038,8 @@
         histSvg.setAttribute('viewBox', '0 0 100 100');
         histSvg.setAttribute('preserveAspectRatio', 'none');
 
-        var slotW   = 100 / nMonths;             // width of one month slot (%)
-        var bw      = slotW * 0.85;              // visible bar width (%)
-        var fromIdx = (yearFrom - data.range.min) * 12;
-        var toIdx   = (yearTo   - data.range.min) * 12 + 11;
+        var slotW = 100 / nMonths;             // width of one month slot (%)
+        var bw    = slotW * 0.85;              // visible bar width (%)
 
         // Wipe and rebuild children. createElementNS guarantees SVG namespace.
         while (histSvg.firstChild) histSvg.removeChild(histSvg.firstChild);
@@ -864,7 +1050,7 @@
           var bh    = (c / maxN) * 99;
           var bx    = k * slotW + slotW * 0.075;
           var by    = 100 - bh;
-          var inRng = (k >= fromIdx && k <= toIdx);
+          var inRng = (k >= monthFromIdx && k <= monthToIdx);
           var fill  = inRng ? '#7A1B1B' : '#c8c2c2';
 
           var rect = document.createElementNS(SVG_NS, 'rect');
@@ -878,12 +1064,11 @@
         }
       }
 
-      // ---- Axis ticks (every 5 years across the fixed 1993-2026 rail) ----
+      // ---- Axis ticks (every 2 years across the 2014-2026 rail) ----
       function drawAxis() {
-        var r = FIXED_RANGE;
         axisEl.innerHTML = '';
-        [1995, 2000, 2005, 2010, 2015, 2020, 2025].forEach(function (yr) {
-          var pct  = ((yr - r.min) / (r.max - r.min)) * 100;
+        [2014, 2016, 2018, 2020, 2022, 2024, 2026].forEach(function (yr) {
+          var pct  = ((yr - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * 100;
           var span = document.createElement('span');
           span.textContent = yr;
           span.style.left  = pct.toFixed(2) + '%';
@@ -893,9 +1078,12 @@
 
       // ---- Render ----
       function render() {
-        var feats = allFeatures[currentSource].filter(function (f) {
+        var feats = allFeatures.iom.filter(function (f) {
           var p = f.properties;
-          if (p.year < yearFrom || p.year > yearTo) return false;
+          if (!p.date) return false;
+          var month = parseInt(p.date.substring(5, 7), 10) || 1;
+          var idx   = ymToIdx(p.year, month);
+          if (idx < monthFromIdx || idx > monthToIdx) return false;
           if (originFilter.size > 0 && !originFilter.has(p.origin_macro || 'unknown')) return false;
           if (routeFilter.size  > 0 && !routeFilter.has(p.route)) return false;
           var cm = p.cause_macro || 'other';
@@ -913,71 +1101,106 @@
       var axisEl = document.querySelector('.year-axis');
       drawAxis();
 
-      // ---- Load both GeoJSONs once, then render ----
+      // ---- Load IOM GeoJSON once, then render ----
       // The query string forces the browser to refetch when the data is rebuilt.
-      var DATA_VERSION = '2026-05-04-coordfix';
-      Promise.all([
-        fetch('data/incidents_united.geojson?v=' + DATA_VERSION).then(function (r) { return r.json(); }),
-        fetch('data/incidents_iom.geojson?v=' + DATA_VERSION).then(function (r) { return r.json(); })
-      ]).then(function (results) {
-        allFeatures.united = results[0].features;
-        allFeatures.iom    = results[1].features;
-        initChoices();
-        populateRouteChoices();
-        buildHistData();
-        render();
-      });
+      var DATA_VERSION = '2026-05-05-iomonly';
+      fetch('data/incidents_iom.geojson?v=' + DATA_VERSION)
+        .then(function (r) { return r.json(); })
+        .then(function (gj) {
+          allFeatures.iom = gj.features;
+          initChoices();
+          populateRouteChoices();
+          buildHistData();
+          render();
+        });
 
       // Re-draw the histogram on resize so the bar widths stay aligned with
       // the slider rail.
       window.addEventListener('resize', function () { drawHistogram(); });
 
-      // ---- Source toggle ----
-      // Slider rail is fixed at 1993-2026. When switching to IOM, snap
-      // the lower thumb up to 2014 (IOM's first year) so the user lands
-      // on data immediately; the upper thumb is left alone. Switching
-      // back to UNITED preserves whatever selection is current.
-      var IOM_MIN_YEAR = 2014;
-      document.querySelectorAll('.map-toggle .layer-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          document.querySelectorAll('.map-toggle .layer-btn').forEach(function (b) {
-            b.classList.remove('active');
-          });
-          btn.classList.add('active');
-          currentSource = btn.dataset.source;
-
-          if (currentSource === 'iom' && yearFrom < IOM_MIN_YEAR) {
-            // Triggers 'update' → render() automatically.
-            sliderEl.noUiSlider.set([IOM_MIN_YEAR, yearTo]);
-          } else {
-            render();
-          }
-        });
-      });
-
-      // ---- Year slider (noUiSlider, dual-thumb) ----
-      // Range fixed at 1993-2026 for both sources.
+      // ---- Period slider (noUiSlider, dual-thumb, month resolution) ----
+      // Slider value = months-since-Jan-2014 (0..N_MONTHS-1). The two month
+      // and two year dropdowns above the rail expose the same state — they
+      // are populated below and kept in sync via syncDropdowns().
       noUiSlider.create(sliderEl, {
-        start: [YEAR_MIN, YEAR_MAX],
+        start: [0, N_MONTHS - 1],
         connect: true,
         step: 1,
-        range: { min: YEAR_MIN, max: YEAR_MAX },
+        range: { min: 0, max: N_MONTHS - 1 },
         format: {
           to:   function (value) { return Math.round(value); },
           from: function (value) { return Number(value); }
         }
       });
 
+      // ---- Period dropdowns ----
+      var psMonthFrom = document.querySelector('.ps-month-from');
+      var psMonthTo   = document.querySelector('.ps-month-to');
+      var psYearFrom  = document.querySelector('.ps-year-from');
+      var psYearTo    = document.querySelector('.ps-year-to');
+
+      MONTH_NAMES.forEach(function (name, i) {
+        [psMonthFrom, psMonthTo].forEach(function (sel) {
+          var o = document.createElement('option');
+          o.value = i + 1;            // 1-12
+          o.textContent = name;
+          sel.appendChild(o);
+        });
+      });
+      for (var y = YEAR_MIN; y <= YEAR_MAX; y++) {
+        [psYearFrom, psYearTo].forEach(function (sel) {
+          var o = document.createElement('option');
+          o.value = y;
+          o.textContent = y;
+          sel.appendChild(o);
+        });
+      }
+
+      function syncDropdowns() {
+        var f = idxToYM(monthFromIdx);
+        var t = idxToYM(monthToIdx);
+        psMonthFrom.value = f.month;
+        psYearFrom.value  = f.year;
+        psMonthTo.value   = t.month;
+        psYearTo.value    = t.year;
+      }
+
+      function onPeriodSelectChange() {
+        var fIdx = ymToIdx(parseInt(psYearFrom.value, 10),
+                           parseInt(psMonthFrom.value, 10));
+        var tIdx = ymToIdx(parseInt(psYearTo.value, 10),
+                           parseInt(psMonthTo.value, 10));
+        // Keep coherent: if user picks a "to" before "from", snap "to" up.
+        if (tIdx < fIdx) tIdx = fIdx;
+        sliderEl.noUiSlider.set([fIdx, tIdx]);   // fires 'update' → render
+      }
+      [psMonthFrom, psMonthTo, psYearFrom, psYearTo].forEach(function (s) {
+        s.addEventListener('change', onPeriodSelectChange);
+      });
+
       sliderEl.noUiSlider.on('update', function (values) {
-        yearFrom = parseInt(values[0], 10);
-        yearTo   = parseInt(values[1], 10);
-        fromVal.textContent = yearFrom;
-        toVal.textContent   = yearTo;
+        monthFromIdx = parseInt(values[0], 10);
+        monthToIdx   = parseInt(values[1], 10);
+        syncDropdowns();
+        updateSourceCaption();
         render();
       });
 
+      // Reset all: clears period range AND all three filter selections.
+      // Each Choices.js removeActiveItems() call fires a 'change' event on
+      // the underlying <select>, which our listeners convert back to empty
+      // filter Sets and trigger a render. Setting the slider also fires
+      // 'update' → render(). We call render() at the end as a safety net for
+      // the rare case where Choices.js is still loading.
       resetBtn.addEventListener('click', function () {
-        sliderEl.noUiSlider.set([YEAR_MIN, YEAR_MAX]);
+        sliderEl.noUiSlider.set([0, N_MONTHS - 1]);
+        if (originChoices) originChoices.removeActiveItems();
+        if (routeChoices)  routeChoices.removeActiveItems();
+        if (causeChoices)  causeChoices.removeActiveItems();
+        originFilter = new Set();
+        routeFilter  = new Set();
+        causeFilter  = new Set();
+        render();
       });
 
       // ---- Choices.js multi-select dropdowns ----
@@ -1019,16 +1242,12 @@
         });
       }
 
-      // Union of route values across both datasets (UNITED routes are
-      // homogenised to the IOM `Route` vocabulary in 02_build_geojson.R, so
-      // they share the same labels). Sorted by combined frequency desc so
-      // the most common routes float to the top of the dropdown. Built once
-      // after data loads — survives source toggles, since the vocabulary is
-      // now shared.
+      // Build the route dropdown options from IOM's loaded features. Sorted
+      // by frequency desc so the most common routes float to the top.
       function populateRouteChoices() {
         if (!routeChoices) return;
         var counts = {};
-        ['united', 'iom'].forEach(function (src) {
+        ['iom'].forEach(function (src) {
           allFeatures[src].forEach(function (f) {
             var v = f.properties.route;
             if (v == null || v === '') return;
