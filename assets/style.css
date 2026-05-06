@@ -276,7 +276,7 @@ figure.hero-image img {
 .leaflet-figure figcaption p:last-child { margin-bottom: 0; }
 #incident-map {
   width: 100%;
-  height: 580px;       /* ≈ 1 cm taller than the previous 540 px */
+  height: 640px;       /* extra vertical room so the basin reads better */
   background: #eef0f2;
 }
 .map-toggle {
@@ -802,12 +802,12 @@ figure.hero-image img {
     0 0 4px #fafafa, 0 0 4px #fafafa, 0 0 4px #fafafa;
 }
 
-/* ── 11. Expand control + figure enlarged state ───────────
+/* ── 11. Fullscreen control + figure fullscreen state ─────
    Custom button matches Leaflet's .leaflet-bar styling so it lines
-   up with the zoom +/-. Clicking it floats the figure as a centered
-   modal at near-viewport size with a CSS-animated grow/shrink and a
-   dimmed backdrop — smoother than the browser's native fullscreen,
-   keeps the page chrome visible, ESC or backdrop click closes. */
+   up with the zoom +/-. The figure is the fullscreen target so the
+   title, source caption, period slider and filter dropdowns all stay
+   visible alongside the map. The padding gives the title and selectors
+   breathing room and keeps them from hugging the screen edge. */
 .leaflet-control-fullscreen-btn {
   display: block;
   width: 26px;
@@ -823,53 +823,37 @@ figure.hero-image img {
 .leaflet-control-fullscreen-btn:hover  { background: #f4f4f4; color: #000; }
 .leaflet-control-fullscreen-btn:focus  { outline: none; }
 
-/* Dimmed backdrop while a figure is expanded; click-through is allowed
-   so the click-outside-to-close handler in JS still receives the event. */
-body.is-figure-expanded::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 20, 20, .42);
-  z-index: 999;
-  animation: leaflet-figure-backdrop-in 320ms ease both;
-}
-body.is-figure-expanded { overflow: hidden; }
-
-@keyframes leaflet-figure-backdrop-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes leaflet-figure-pop-in {
-  from { opacity: 0; transform: scale(.965); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-.leaflet-figure.is-expanded {
-  position: fixed;
-  inset: 24px;
-  width: auto;
-  max-width: none;
-  margin: 0;
-  z-index: 1000;
-  background: var(--bg-figure);
-  border-radius: 8px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+.leaflet-figure:fullscreen,
+.leaflet-figure:-webkit-full-screen {
+  max-width: 100% !important;
+  margin: 0 !important;
+  width: 100vw;
+  height: 100vh;
+  padding: 28px 28px 28px !important;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  animation: leaflet-figure-pop-in 320ms cubic-bezier(.25, .1, .25, 1) both;
+  background: var(--bg-figure);
 }
-.leaflet-figure.is-expanded #incident-map {
+/* Map fills the space between the header rows (title + source caption)
+   and the docked footer rows (counts, period slider, filter dropdowns). */
+.leaflet-figure:fullscreen #incident-map,
+.leaflet-figure:-webkit-full-screen #incident-map {
   flex: 1 1 auto;
-  height: auto;
+  height: auto !important;
   min-height: 0;
 }
-.leaflet-figure.is-expanded .source-caption,
-.leaflet-figure.is-expanded .map-toggle,
-.leaflet-figure.is-expanded .year-bar,
-.leaflet-figure.is-expanded .filter-bar { flex: 0 0 auto; }
-.leaflet-figure.is-expanded figcaption { display: none; }
-.leaflet-figure.is-expanded .map-title { padding: 12px 16px 0; margin-bottom: 8px; }
+.leaflet-figure:fullscreen .map-title,
+.leaflet-figure:fullscreen .source-caption,
+.leaflet-figure:fullscreen .map-toggle,
+.leaflet-figure:fullscreen .year-bar,
+.leaflet-figure:fullscreen .filter-bar,
+.leaflet-figure:-webkit-full-screen .map-title,
+.leaflet-figure:-webkit-full-screen .source-caption,
+.leaflet-figure:-webkit-full-screen .map-toggle,
+.leaflet-figure:-webkit-full-screen .year-bar,
+.leaflet-figure:-webkit-full-screen .filter-bar { flex: 0 0 auto; }
+.leaflet-figure:fullscreen figcaption,
+.leaflet-figure:-webkit-full-screen figcaption { display: none; }
 
 /* ── 12. Footer + mobile ─────────────────────────────────── */
 hr.rule {
