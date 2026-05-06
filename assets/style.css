@@ -51,16 +51,14 @@ article {
    one at a time, fade in as they enter the viewport (IntersectionObserver
    in JS adds .is-visible), and respect prefers-reduced-motion. */
 .scene {
-  padding: 56px 0;
-  min-height: 70vh;
+  padding: 24px 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 .scene > * { width: 100%; }
-.scene-intro    { padding-top: 24px;  min-height: 80vh; }
-.scene-figure   { padding: 24px 0;    min-height: 0;    justify-content: flex-start; }
-.scene-closing  { min-height: 60vh; }
+.scene-intro    { padding-top: 24px; }
+.scene-figure   { padding: 24px 0; min-height: 70vh; justify-content: flex-start; }
+.scene-closing  { padding: 24px 0; }
 
 /* Reveal styles are scoped under .reveal-mode (set by JS at the top of
    <body>). Without that class, .reveal is inert — so users without JS,
@@ -75,38 +73,16 @@ article {
 .reveal-mode .reveal.is-visible { opacity: 1; transform: translateY(0); }
 @media print {
   .reveal-mode .reveal { opacity: 1 !important; transform: none !important; }
-  .scroll-cue          { display: none; }
-}
-
-/* Scroll cue under the title — a soft "↓" hinting "keep scrolling". */
-.scroll-cue {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 32px;
-  height: 32px;
-  margin: 32px auto 0;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  color: var(--muted);
-  font-size: 14px;
-  animation: nudge 1.8s ease-in-out infinite;
-  transition: opacity 0.5s ease-out;
-}
-@keyframes nudge {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(4px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
-  .scroll-cue { animation: none; }
 }
 
 @media (max-width: 540px) {
-  .scene { padding: 36px 0; min-height: 60vh; }
-  .scene-intro { min-height: 70vh; }
+  .scene { padding: 18px 0; }
+  .scene-figure { min-height: 0; }
 }
 
 /* ── 3. Article header + prose ─────────────────────────────── */
@@ -170,18 +146,6 @@ p.lede::first-letter {
 a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
 a:hover { border-bottom-color: var(--accent); }
 
-/* Faded italic styling for prose slots that are still empty stubs.
-   Once the user replaces the bracketed text the styling is harmless;
-   the rule only applies when the paragraph still contains a stub. */
-p.placeholder {
-  color: var(--muted);
-  font-style: italic;
-  background: #f3f1ee;
-  border-left: 2px solid #e2dcd2;
-  padding: 12px 16px;
-  margin: 0 0 22px;
-}
-
 /* ── 4. Generic figure + custom video controls ─────────────── */
 figure {
   margin: 36px auto;
@@ -203,6 +167,16 @@ figcaption {
   padding: 12px 4px 0;
 }
 figcaption strong { color: var(--text); }
+
+/* Hero image at the top of the intro scene — full prose column, sits
+   between the byline and the lede paragraph. */
+figure.hero-image {
+  max-width: 100%;
+  margin: 0 0 28px;
+}
+figure.hero-image img {
+  border-radius: 2px;
+}
 
 .player {
   position: relative;
@@ -266,13 +240,38 @@ figcaption strong { color: var(--text); }
 }
 
 /* ── 5a. Leaflet map figure ────────────────────────────────── */
+/* Breakout: the figure renders wider than the 1040px prose column for
+   visual impact (typical long-form journalism layout). Caps at 1320px
+   and shrinks to fit narrower viewports so it never causes horizontal
+   scroll. The negative side margins pull it outside the article column;
+   the :fullscreen rule below uses !important to override on fullscreen. */
 .leaflet-figure {
-  max-width: 100%;
-  margin: 36px 0;
+  --fig-w: min(1320px, calc(100vw - 32px));
+  width: var(--fig-w);
+  max-width: none;
+  margin: 36px calc((100% - var(--fig-w)) / 2);
 }
+/* Title sitting above the source-caption inside the map figure. */
+.leaflet-figure .map-title {
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 10px;
+  padding: 0 4px;
+}
+/* Multi-paragraph figcaption — relax the default block-level <p>
+   margins so the three paragraphs hang together visually. */
+.leaflet-figure figcaption p {
+  margin: 0 0 10px;
+  text-align: left;
+  hyphens: auto;
+}
+.leaflet-figure figcaption p:last-child { margin-bottom: 0; }
 #incident-map {
   width: 100%;
-  height: 540px;
+  height: 580px;       /* ≈ 1 cm taller than the previous 540 px */
   background: #eef0f2;
 }
 .map-toggle {
@@ -407,6 +406,14 @@ figcaption strong { color: var(--text); }
   background: #fff;
   flex: 0 0 auto;
 }
+.map-legend .swatch-city {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #222;
+  flex: 0 0 auto;
+  margin: 0 2px;
+}
 .map-legend .legend-divider {
   border-top: 1px solid #ececec;
   margin: 6px 0;
@@ -441,6 +448,25 @@ figcaption strong { color: var(--text); }
      0    0   3px #fafafa;
 }
 .leaflet-tooltip.hub-label::before { display: none; }
+
+/* Sea-route arrival point label — italic and slightly smaller so it
+   reads as visually subordinate to the open-circle hubs. */
+.leaflet-tooltip.city-label {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: 600;
+  color: #3a3a3a;
+  text-shadow:
+    -1px -1px 0 #fafafa, 1px -1px 0 #fafafa,
+    -1px  1px 0 #fafafa, 1px  1px 0 #fafafa,
+     0    0   3px #fafafa;
+}
+.leaflet-tooltip.city-label::before { display: none; }
 
 /* ── 6. Source caption ─────────────────────────────────────
    "Showing X / Y events" caption above the map. JS updates the
@@ -832,6 +858,104 @@ hr.rule {
 }
 .sources strong { color: var(--text); }
 .sources a { color: var(--muted); border-bottom-color: #cfcfcf; }
+
+/* ── 13. Methodology section ──────────────────────────────
+   Rendered as a collapsible <details> dropdown wrapped in a soft box,
+   so the methodology is reachable but doesn't dominate the article
+   visually. Sans-serif and slightly smaller than the body so the
+   open content reads as reference material. */
+.methodology {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #2a2a2a;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbf9f5;
+  margin: 32px 0;
+  padding: 0 22px;
+}
+.methodology > *:not(summary) { padding-left: 0; padding-right: 0; }
+.methodology[open] {
+  padding-bottom: 8px;
+}
+.methodology summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--text);
+  padding: 18px 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+.methodology summary::-webkit-details-marker { display: none; }
+.methodology summary::after {
+  content: "▾";
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 400;
+  transition: transform 0.2s ease;
+  margin-left: 12px;
+}
+.methodology[open] summary::after { transform: rotate(180deg); }
+.methodology summary:hover { color: var(--accent); }
+.methodology h3 {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 26px 0 8px;
+}
+.methodology p {
+  margin: 0 0 14px;
+  text-align: left;       /* override article-wide justify */
+  hyphens: auto;
+}
+.methodology ul,
+.methodology ol {
+  margin: 0 0 14px;
+  padding-left: 22px;
+  color: #2a2a2a;
+}
+.methodology li {
+  margin-bottom: 6px;
+}
+.methodology strong { color: var(--text); }
+.methodology a {
+  color: var(--accent);
+  border-bottom-color: #e2cccd;
+}
+.methodology a:hover { border-bottom-color: var(--accent); }
+.methodology code {
+  font-family: "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 12.5px;
+  background: #f1efeb;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #444;
+}
+.methodology pre {
+  background: #f1efeb;
+  border-left: 3px solid var(--accent);
+  padding: 12px 14px;
+  margin: 0 0 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.55;
+  border-radius: 0 3px 3px 0;
+}
+.methodology pre code {
+  background: transparent;
+  padding: 0;
+  color: #2a2a2a;
+}
 
 @media (max-width: 540px) {
   article { padding: 36px 18px 64px; }

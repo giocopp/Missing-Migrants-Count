@@ -1,0 +1,83 @@
+corridor,country,in_dtm,operations
+Western Africa / Atlantic route to the Canary Islands,Senegal,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Gambia,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Guinea-Bissau,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Guinea,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Sierra Leone,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Liberia,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Mauritania,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Western Sahara,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Morocco,FALSE,NA
+Western Africa / Atlantic route to the Canary Islands,Mali,TRUE,NA
+Western Africa / Atlantic route to the Canary Islands,Burkina Faso,TRUE,NA
+Western Africa / Atlantic route to the Canary Islands,Niger,TRUE,NA
+Western Africa / Atlantic route to the Canary Islands,Spain,FALSE,NA
+Western Mediterranean,Niger,TRUE,NA
+Western Mediterranean,Algeria,FALSE,NA
+Western Mediterranean,Morocco,FALSE,NA
+Western Mediterranean,Mali,TRUE,NA
+Western Mediterranean,Mauritania,FALSE,NA
+Western Mediterranean,Western Sahara,FALSE,NA
+Western Mediterranean,Spain,FALSE,NA
+Western Mediterranean,Tunisia,FALSE,NA
+Western Mediterranean,Senegal,FALSE,NA
+Western Mediterranean,Gambia,FALSE,NA
+Western Mediterranean,Somalia,TRUE,NA
+Western Mediterranean,Ethiopia,TRUE,NA
+Western Mediterranean,Sudan,TRUE,NA
+Central Mediterranean,Niger,TRUE,NA
+Central Mediterranean,Libya,TRUE,NA
+Central Mediterranean,Tunisia,FALSE,NA
+Central Mediterranean,Italy,FALSE,NA
+Central Mediterranean,Malta,FALSE,NA
+Central Mediterranean,Algeria,FALSE,NA
+Central Mediterranean,Nigeria,TRUE,NA
+Central Mediterranean,Burkina Faso,TRUE,NA
+Central Mediterranean,Cameroon,TRUE,NA
+Central Mediterranean,Chad,TRUE,NA
+Central Mediterranean,Sudan,TRUE,NA
+Central Mediterranean,Mali,TRUE,NA
+Central Mediterranean,Ethiopia,TRUE,NA
+Central Mediterranean,Egypt,FALSE,NA
+Eastern Mediterranean,Iran,FALSE,NA
+Eastern Mediterranean,Iraq,TRUE,NA
+Eastern Mediterranean,Türkiye,FALSE,NA
+Eastern Mediterranean,Syria,TRUE,NA
+Eastern Mediterranean,Lebanon,TRUE,NA
+Eastern Mediterranean,Cyprus,FALSE,NA
+Eastern Mediterranean,Greece,FALSE,NA
+Eastern Mediterranean,Bulgaria,FALSE,NA
+Eastern Mediterranean,Serbia,FALSE,NA
+Eastern Mediterranean,Albania,FALSE,NA
+Eastern Mediterranean,North Macedonia,FALSE,NA
+Eastern Mediterranean,Croatia,FALSE,NA
+Eastern Mediterranean,Israel,FALSE,NA
+Eastern Mediterranean,Libya,TRUE,NA
+East Africa,Kenya,TRUE,NA
+East Africa,Ethiopia,TRUE,NA
+East Africa,Sudan,TRUE,NA
+East Africa,Egypt,FALSE,NA
+East Africa,Libya,TRUE,NA
+East Africa,Tunisia,FALSE,NA
+East Africa,Eritrea,FALSE,NA
+East Africa,Somalia,TRUE,NA
+East Africa,Djibouti,TRUE,NA
+East Africa,Yemen,TRUE,NA
+East Africa,Saudi Arabia,FALSE,NA
+East Africa,Israel,FALSE,NA
+East Africa,Jordan,FALSE,NA
+Other,Russia,FALSE,NA
+Other,Belarus,FALSE,NA
+Other,Poland,FALSE,NA
+Other,Ukraine,TRUE,NA
+Other,Germany,FALSE,NA
+Other,Denmark,FALSE,NA
+Other,Sweden,FALSE,NA
+Other,Austria,FALSE,NA
+Other,France,FALSE,NA
+Other,United Kingdom,FALSE,NA
+Other,Belgium,FALSE,NA
+Other,Hungary,FALSE,NA
+Other,Italy,FALSE,NA
+Other,Spain,FALSE,NA
+Other,Norway,FALSE,NA

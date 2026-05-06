@@ -1,35 +1,34 @@
 // ============================================================
 // Interactive Leaflet map: migrant deaths on routes to Europe.
 // ----
-// Loads incident GeoJSON, renders death points sized by toll and
-// coloured by sea corridor, overlays the migration-route polylines
-// and hubs from data.js, and wires up the year-range slider, four
-// filter dropdowns (origin, route, cause, incident-size) and the
+// Loads route metadata + incident GeoJSON in parallel, plots death
+// points sized by toll and coloured by sea corridor, overlays the
+// migration-route polylines and hubs from data/built/routes.json,
+// and wires up the year-range slider, four filter dropdowns and the
 // reset button.
 //
 // Depends on (loaded as plain <script>s before this file):
-//   - Leaflet           (window.L)
-//   - noUiSlider        (window.noUiSlider)
-//   - Choices.js        (window.Choices)
-//   - data.js exposes:  ROUTE_COLORS, ROUTE_SHORT_LABELS,
-//                       CAUSE_LABELS, ORIGIN_LABELS, PRECISION_FLAGS,
-//                       HUBS, ROUTE_LINES
+//   - Leaflet     (window.L)
+//   - noUiSlider  (window.noUiSlider)
+//   - Choices.js  (window.Choices)
+//
+// Data sources (both fetched at load time, served as static files):
+//   - data/built/routes.json          (built by R/03_build_routes.R)
+//   - data/built/incidents_iom.geojson (built by R/02_build_geojson.R)
 //
 // Sections, in order:
-//   1.  Time helpers (slider index ↔ year/month)
+//   1.  Time helpers
 //   2.  Map setup (Leaflet, fullscreen control, basemap)
 //   3.  Size encoding (radius + bucket)
-//   4.  Route polylines + hubs (rendered once, below the live layer)
-//   5.  On-map legend
-//   6.  Tooltip + layer builder
-//   7.  State + DOM refs
-//   8.  Counts + source caption
-//   9.  Histogram + axis ticks
-//  10.  render()
-//  11.  Data load
-//  12.  Period slider + dropdowns
-//  13.  Reset all
-//  14.  Choices.js multi-select setup
+//   4.  Tooltip + layer builder
+//   5.  State + DOM refs
+//   6.  Counts + source caption
+//   7.  Histogram + axis ticks
+//   8.  render()
+//   9.  Period slider + dropdowns
+//  10.  Reset all
+//  11.  Choices.js multi-select setup
+//  12.  Data fetch (routes.json + incidents.geojson) → render overlays
 // ============================================================
 
 window.addEventListener('load', function () {
@@ -53,7 +52,10 @@ window.addEventListener('load', function () {
 
   // ---- 2. Map setup ---------------------------------------------------
   var map = L.map('incident-map', {
-    center: [42.0, 14.0],     // Italy: fits Mediterranean + most of Europe
+    // Tripoli sits at lon 13.19; offsetting the centre ~7° east pulls Tripoli
+    // toward the left of the viewport so the framing emphasises the
+    // Mediterranean / East Africa flow rather than empty Atlantic Ocean.
+    center: [32.8872, 20.0],
     zoom: 4,
     zoomSnap: 0.5,
     scrollWheelZoom: false,   // avoid hijacking page scroll
@@ -80,9 +82,6 @@ window.addEventListener('load', function () {
     L.DomEvent.on(btn, 'click', function (e) {
       L.DomEvent.preventDefault(e);
       L.DomEvent.stopPropagation(e);
-      // Fullscreen the entire figure so the period bar and the four
-      // filter dropdowns stay reachable in fullscreen mode. Falls back
-      // to the map container if the figure can't be found.
       var elem  = document.querySelector('.leaflet-figure') ||
                   map.getContainer();
       var doc   = document;
@@ -113,8 +112,7 @@ window.addEventListener('load', function () {
   });
 
   // CartoDB Positron — light grey basemap with country, sea/ocean and
-  // major-city labels. Pairs well with the death-toll dots and gives
-  // the reader geographic anchors without crowding the map.
+  // major-city labels.
   L.tileLayer(
     'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
     {
@@ -130,8 +128,6 @@ window.addEventListener('load', function () {
 
 
   // ---- 3. Size encoding ----------------------------------------------
-  // Minimum radius is deliberately small so 1-death incidents render as a
-  // faint dot, leaving visual room for the larger events to dominate.
   function radiusFor(n) {
     return Math.max(2, Math.sqrt(Math.max(1, n)) * 1.4);
   }
@@ -145,114 +141,11 @@ window.addEventListener('load', function () {
   }
 
 
-  // ---- 4. Route polylines + hubs (added once, stay below the live
-  // death-points layer that gets rebuilt on every filter change).
-  // Polylines are semi-transparent so the dots stay readable on top.
-  ROUTE_LINES.forEach(function (line) {
-    L.polyline(line.coords, {
-      color:        ROUTE_COLORS[line.route] || '#888',
-      weight:       line.major ? 4 : 1.8,
-      opacity:      line.major ? 0.55 : 0.45,
-      smoothFactor: 1.5,
-      lineCap:      'round',
-      lineJoin:     'round',
-      interactive:  false   // don't steal hover from the death points
-    }).addTo(map);
-  });
-  HUBS.forEach(function (hub) {
-    var dir = hub.dir || 'right';
-    // Offset moves the label outward in the chosen direction so it sits
-    // off the marker edge rather than on top of it.
-    var off = (
-      dir === 'left'  ? [-8,  0] :
-      dir === 'top'   ? [ 0, -8] :
-      dir === 'bottom'? [ 0,  8] :
-                        [ 8,  0]
-    );
-    L.circleMarker(hub.latlng, {
-      radius:      5,
-      color:       '#222',
-      weight:      2,
-      fillColor:   '#fff',
-      fillOpacity: 1,
-      interactive: false
-    }).addTo(map)
-      .bindTooltip(hub.name, {
-        permanent: true,
-        direction: dir,
-        offset:    off,
-        className: 'hub-label'
-      });
-  });
-
-
-  // ---- 5. On-map legend ----------------------------------------------
-  // Decodes dot color (sea corridor) and dot size (number of dead), and
-  // explains the line overlay (six migration corridors, with major vs.
-  // connecting weights). Mounted via L.control so Leaflet handles the
-  // corner anchoring.
-  var legend = L.control({ position: 'topright' });
-  legend.onAdd = function () {
-    var div = L.DomUtil.create('div', 'map-legend');
-    L.DomEvent.disableClickPropagation(div);
-    L.DomEvent.disableScrollPropagation(div);
-
-    // Order matches the reference figure's legend (top-to-bottom):
-    // West Africa, Western Med, Central Med, Eastern Med, East Africa, Other.
-    var routeOrder = [
-      'Western Africa / Atlantic route to the Canary Islands',
-      'Western Mediterranean',
-      'Central Mediterranean',
-      'Eastern Mediterranean',
-      'East Africa',
-      'Other'
-    ];
-    // Sea-route corridors (have death dots in the data); land corridors
-    // (East Africa, Other) only render as overlay context.
-    var hasDots = {
-      'Western Africa / Atlantic route to the Canary Islands': true,
-      'Western Mediterranean': true,
-      'Central Mediterranean': true,
-      'Eastern Mediterranean': true
-    };
-    var html = '<div class="legend-title">Migration corridor</div>';
-    routeOrder.forEach(function (r) {
-      var c = ROUTE_COLORS[r];
-      var dot = hasDots[r]
-        ? '<span class="swatch" style="background:' + c + '"></span>'
-        : '<span class="swatch swatch-empty"></span>';
-      html += '<div class="legend-row">'
-        + dot
-        + '<span class="swatch-line" style="background:' + c + '"></span>'
-        + '<span>' + ROUTE_SHORT_LABELS[r] + '</span></div>';
-    });
-    html += '<div class="legend-note">Dots show recorded sea-route deaths only.</div>';
-    html += '<div class="legend-divider"></div>'
-      + '<div class="legend-row">'
-      +   '<span class="swatch-line" style="background:#666;"></span>'
-      +   '<span>Major route</span></div>'
-      + '<div class="legend-row">'
-      +   '<span class="swatch-line minor" style="background:#666;"></span>'
-      +   '<span>Connecting route</span></div>'
-      + '<div class="legend-row">'
-      +   '<span class="swatch-hub"></span>'
-      +   '<span>Main migration hub</span></div>';
-    html += '<div class="legend-foot">'
-      + 'Dot size = number of dead or missing'
-      + '<div class="size-row">'
-      +   '<span class="size-dot" style="width:4px;height:4px;"></span>'
-      +   '<span class="size-dot" style="width:14px;height:14px;"></span>'
-      +   '<span class="size-dot" style="width:24px;height:24px;"></span>'
-      +   '<span style="margin-left:4px;">1 &middot; 50 &middot; 300+</span>'
-      + '</div>'
-      + '</div>';
-    div.innerHTML = html;
-    return div;
-  };
-  legend.addTo(map);
-
-
-  // ---- 6. Tooltip + layer builder ------------------------------------
+  // ---- 4. Tooltip + layer builder ------------------------------------
+  // These read the *live* values of ROUTE_COLORS / CAUSE_LABELS / etc.
+  // declared in section 5. They stay empty until routes.json is fetched
+  // (section 12), but tip() / buildLayer() are only ever called from
+  // render(), which itself is gated on that fetch.
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -281,21 +174,35 @@ window.addEventListener('load', function () {
     return html;
   }
 
+  // Sea-corridor filter is "soft": non-matching dots stay on the map but
+  // dim to grey + low opacity. Returns true if a feature is currently
+  // selected (vivid) under the active route filter.
+  function isRouteSelected(props) {
+    return routeFilter.size === 0 || routeFilter.has(props.route);
+  }
+
   function buildLayer(features) {
-    // Largest first so smallest end up on top of the SVG stack and stay hoverable.
+    // Sort so non-selected features render first (bottom of the SVG
+    // stack), then selected on top. Within each group, largest first so
+    // small dots stay hoverable.
     var sorted = features.slice().sort(function (a, b) {
+      var aSel = isRouteSelected(a.properties);
+      var bSel = isRouteSelected(b.properties);
+      if (aSel !== bSel) return aSel ? 1 : -1;
       return (b.properties.n_dead || 0) - (a.properties.n_dead || 0);
     });
     return L.geoJSON({ type: 'FeatureCollection', features: sorted }, {
       pointToLayer: function (feat, latlng) {
-        var col = ROUTE_COLORS[feat.properties.route] || '#8A8784';
+        var sel = isRouteSelected(feat.properties);
+        var col = sel ? (ROUTE_COLORS[feat.properties.route] || '#8A8784')
+                      : '#bcbcbc';
         return L.circleMarker(latlng, {
           radius:      radiusFor(feat.properties.n_dead),
           fillColor:   col,
           color:       col,
           weight:      1,
-          fillOpacity: 0.55,
-          opacity:     0.85
+          fillOpacity: sel ? 0.55 : 0.10,
+          opacity:     sel ? 0.85 : 0.20
         });
       },
       onEachFeature: function (feat, layer) {
@@ -307,11 +214,39 @@ window.addEventListener('load', function () {
     });
   }
 
+  // Re-style the corridor polylines + hubs so non-selected ones dim with
+  // the same logic as the dots. Called whenever the route filter changes
+  // (and on every render() so it stays in sync).
+  var routePolylineRefs = [];   // populated in section 12 once routes.json loads
+  function updateRouteStyles() {
+    var any = routeFilter.size > 0;
+    routePolylineRefs.forEach(function (it) {
+      var sel = !any || routeFilter.has(it.route);
+      it.layer.setStyle({
+        color:   sel ? (ROUTE_COLORS[it.route] || '#888') : '#bcbcbc',
+        opacity: sel ? (it.major ? 0.55 : 0.45) : 0.18
+      });
+    });
+  }
 
-  // ---- 7. State + DOM refs -------------------------------------------
+
+  // ---- 5. State + DOM refs -------------------------------------------
   // Filter sets follow an "empty = no filter" convention: a feature
-  // passes when the filter set is empty OR the feature's value is in the
-  // set. Matches Choices.js's natural empty state.
+  // passes when the filter set is empty OR the feature's value is in
+  // the set. Matches Choices.js's natural empty state.
+  //
+  // The six data objects below are populated by the routes.json fetch
+  // in section 12. They start empty so the tooltip / pointToLayer code
+  // can reference them without crashing if a render fires early.
+  var ROUTE_COLORS       = {};
+  var ROUTE_SHORT_LABELS = {};
+  var CAUSE_LABELS       = {};
+  var ORIGIN_LABELS      = {};
+  var PRECISION_FLAGS    = {};
+  var HUBS               = [];
+  var CITIES             = [];
+  var ROUTE_LINES        = [];
+
   var allFeatures = { iom: [] };
   var activeLayer = null;
   var monthFromIdx = 0, monthToIdx = N_MONTHS - 1;
@@ -335,7 +270,7 @@ window.addEventListener('load', function () {
   var axisEl       = document.querySelector('.year-axis');
 
 
-  // ---- 8. Counts + source caption ------------------------------------
+  // ---- 6. Counts + source caption ------------------------------------
   function updateCounts(features) {
     var n = features.length;
     var sum = features.reduce(function (s, f) {
@@ -349,17 +284,13 @@ window.addEventListener('load', function () {
     if (captionCount) captionCount.textContent = n.toLocaleString();
   }
 
-  // Update the "Showing IOM's Y events between Mon YYYY and Mon YYYY."
-  // caption above the map. Called on every period change. The event count
-  // itself is set inside updateCounts() so it stays in sync with the
-  // visible set.
   function updateSourceCaption() {
     if (captionFrom) captionFrom.textContent = fmtMY(monthFromIdx);
     if (captionTo)   captionTo.textContent   = fmtMY(monthToIdx);
   }
 
 
-  // ---- 9. Histogram + axis ticks -------------------------------------
+  // ---- 7. Histogram + axis ticks -------------------------------------
   // Monthly-bin histogram of deaths (IOM, 2014–2026 = 156 bins). Bars in
   // the [from, to] window are accent red; bars outside are pale.
   var histCache = { iom: null };
@@ -388,15 +319,12 @@ window.addEventListener('load', function () {
     }
     if (maxN === 0) maxN = 1;
 
-    // Fixed viewBox + non-uniform aspect ratio: all coords below are in
-    // 0–100 percentage space, the SVG stretches to its rendered size.
     histSvg.setAttribute('viewBox', '0 0 100 100');
     histSvg.setAttribute('preserveAspectRatio', 'none');
 
     var slotW = 100 / nMonths;             // width of one month slot (%)
     var bw    = slotW * 0.85;              // visible bar width (%)
 
-    // Wipe and rebuild children. createElementNS guarantees SVG namespace.
     while (histSvg.firstChild) histSvg.removeChild(histSvg.firstChild);
 
     for (var k = 0; k < nMonths; k++) {
@@ -419,8 +347,8 @@ window.addEventListener('load', function () {
     }
   }
 
-  // Year tick labels under the rail. One <span> per even year, positioned
-  // at the percentage corresponding to its year.
+  // One <span> per even year, positioned at the percentage corresponding
+  // to its year.
   function drawAxis() {
     axisEl.innerHTML = '';
     [2014, 2016, 2018, 2020, 2022, 2024, 2026].forEach(function (yr) {
@@ -434,7 +362,12 @@ window.addEventListener('load', function () {
   drawAxis();
 
 
-  // ---- 10. render() --------------------------------------------------
+  // ---- 8. render() ---------------------------------------------------
+  // Period, origin, cause and size are HARD filters (non-matching is hidden).
+  // Sea corridor (routeFilter) is a SOFT filter: non-matching features stay
+  // on the map but dim to grey via buildLayer(). Counts reflect only the
+  // matching (vivid) features so the toolbar number changes when the user
+  // narrows by corridor.
   function render() {
     var feats = allFeatures.iom.filter(function (f) {
       var p = f.properties;
@@ -443,7 +376,6 @@ window.addEventListener('load', function () {
       var idx   = ymToIdx(p.year, month);
       if (idx < monthFromIdx || idx > monthToIdx) return false;
       if (originFilter.size > 0 && !originFilter.has(p.origin_macro || 'unknown')) return false;
-      if (routeFilter.size  > 0 && !routeFilter.has(p.route)) return false;
       var cm = p.cause_macro || 'other';
       if (causeFilter.size > 0 && !causeFilter.has(cm)) return false;
       if (sizeFilter.size  > 0 && !sizeFilter.has(sizeBucket(p.n_dead))) return false;
@@ -453,33 +385,16 @@ window.addEventListener('load', function () {
     if (feats.length) {
       activeLayer = buildLayer(feats).addTo(map);
     }
-    updateCounts(feats);
+    updateRouteStyles();
+    var selected = routeFilter.size === 0
+      ? feats
+      : feats.filter(function (f) { return routeFilter.has(f.properties.route); });
+    updateCounts(selected);
     drawHistogram();
   }
 
 
-  // ---- 11. Data load -------------------------------------------------
-  // The query string forces the browser to refetch when the data is rebuilt.
-  var DATA_VERSION = '2026-05-05-iomonly';
-  fetch('data/incidents_iom.geojson?v=' + DATA_VERSION)
-    .then(function (r) { return r.json(); })
-    .then(function (gj) {
-      allFeatures.iom = gj.features;
-      initChoices();
-      populateRouteChoices();
-      buildHistData();
-      render();
-    });
-
-  // Re-draw the histogram on resize so the bar widths stay aligned with
-  // the slider rail.
-  window.addEventListener('resize', function () { drawHistogram(); });
-
-
-  // ---- 12. Period slider + dropdowns ---------------------------------
-  // Slider value = months-since-Jan-2014 (0..N_MONTHS-1). The two month
-  // and two year dropdowns above the rail expose the same state — they
-  // are populated below and kept in sync via syncDropdowns().
+  // ---- 9. Period slider + dropdowns ---------------------------------
   noUiSlider.create(sliderEl, {
     start: [0, N_MONTHS - 1],
     connect: true,
@@ -499,7 +414,7 @@ window.addEventListener('load', function () {
   MONTH_NAMES.forEach(function (name, i) {
     [psMonthFrom, psMonthTo].forEach(function (sel) {
       var o = document.createElement('option');
-      o.value = i + 1;            // 1-12
+      o.value = i + 1;
       o.textContent = name;
       sel.appendChild(o);
     });
@@ -527,9 +442,8 @@ window.addEventListener('load', function () {
                        parseInt(psMonthFrom.value, 10));
     var tIdx = ymToIdx(parseInt(psYearTo.value, 10),
                        parseInt(psMonthTo.value, 10));
-    // Keep coherent: if user picks a "to" before "from", snap "to" up.
     if (tIdx < fIdx) tIdx = fIdx;
-    sliderEl.noUiSlider.set([fIdx, tIdx]);   // fires 'update' → render
+    sliderEl.noUiSlider.set([fIdx, tIdx]);
   }
   [psMonthFrom, psMonthTo, psYearFrom, psYearTo].forEach(function (s) {
     s.addEventListener('change', onPeriodSelectChange);
@@ -544,13 +458,7 @@ window.addEventListener('load', function () {
   });
 
 
-  // ---- 13. Reset all -------------------------------------------------
-  // Clears period range AND all four filter selections. Each Choices.js
-  // removeActiveItems() call fires a 'change' event on the underlying
-  // <select>, which our listeners convert back to empty filter Sets and
-  // trigger a render. Setting the slider also fires 'update' → render().
-  // We call render() at the end as a safety net for the rare case where
-  // Choices.js is still loading.
+  // ---- 10. Reset all -------------------------------------------------
   resetBtn.addEventListener('click', function () {
     sliderEl.noUiSlider.set([0, N_MONTHS - 1]);
     if (originChoices) originChoices.removeActiveItems();
@@ -565,9 +473,7 @@ window.addEventListener('load', function () {
   });
 
 
-  // ---- 14. Choices.js multi-select setup -----------------------------
-  // Origin, cause and size have static option lists in the HTML. Route
-  // options are populated from the loaded GeoJSON below.
+  // ---- 11. Choices.js multi-select setup -----------------------------
   var originChoices = null, routeChoices = null, causeChoices = null,
       sizeChoices   = null;
 
@@ -585,7 +491,6 @@ window.addEventListener('load', function () {
       { searchEnabled: false }));
     causeChoices  = new Choices(causeSelect,  Object.assign({}, common,
       { searchEnabled: false }));
-    // Tag the cause wrapper so any cause-specific CSS scopes to it only.
     causeChoices.containerOuter.element.classList.add('cause-choices');
     routeChoices = new Choices(routeSelect, Object.assign({}, common,
       { searchEnabled: true }));
@@ -627,4 +532,169 @@ window.addEventListener('load', function () {
     routeChoices.clearStore();
     routeChoices.setChoices(opts, 'value', 'label', true);
   }
+
+
+  // ---- 12. Data fetch -----------------------------------------------
+  // Fetch route metadata and the incident GeoJSON in parallel. After
+  // both resolve, populate the data objects, draw the route polylines /
+  // hubs / legend, and render the death points. Re-draw the histogram
+  // on resize so the bar widths stay aligned with the slider rail.
+  var DATA_VERSION = '2026-05-05-iomonly';
+
+  Promise.all([
+    fetch('data/built/routes.json').then(function (r) { return r.json(); }),
+    fetch('data/built/incidents_iom.geojson?v=' + DATA_VERSION).then(function (r) { return r.json(); })
+  ]).then(function (results) {
+    var routes = results[0];
+    var gj     = results[1];
+
+    // 12a. Hydrate the data objects (declared in section 5).
+    ROUTE_COLORS       = routes.ROUTE_COLORS;
+    ROUTE_SHORT_LABELS = routes.ROUTE_SHORT_LABELS;
+    CAUSE_LABELS       = routes.CAUSE_LABELS;
+    ORIGIN_LABELS      = routes.ORIGIN_LABELS;
+    PRECISION_FLAGS    = routes.PRECISION_FLAGS;
+    HUBS               = routes.HUBS;
+    CITIES             = routes.CITIES || [];
+    ROUTE_LINES        = routes.ROUTE_LINES;
+
+    // 12b. Draw route polylines + hubs (added once, stay below the live
+    //      death-points layer that gets rebuilt on every filter change).
+    //      Each polyline is also pushed into routePolylineRefs so
+    //      updateRouteStyles() (called from render()) can dim non-matching
+    //      corridors when the sea-corridor filter is active.
+    ROUTE_LINES.forEach(function (line) {
+      var pl = L.polyline(line.coords, {
+        color:        ROUTE_COLORS[line.route] || '#888',
+        weight:       line.major ? 4 : 1.8,
+        opacity:      line.major ? 0.55 : 0.45,
+        smoothFactor: 1.5,
+        lineCap:      'round',
+        lineJoin:     'round',
+        interactive:  false
+      }).addTo(map);
+      routePolylineRefs.push({ layer: pl, route: line.route, major: line.major });
+    });
+    HUBS.forEach(function (hub) {
+      var dir = hub.dir || 'right';
+      var off = (
+        dir === 'left'  ? [-8,  0] :
+        dir === 'top'   ? [ 0, -8] :
+        dir === 'bottom'? [ 0,  8] :
+                          [ 8,  0]
+      );
+      L.circleMarker(hub.latlng, {
+        radius:      5,
+        color:       '#222',
+        weight:      2,
+        fillColor:   '#fff',
+        fillOpacity: 1,
+        interactive: false
+      }).addTo(map)
+        .bindTooltip(hub.name, {
+          permanent: true,
+          direction: dir,
+          offset:    off,
+          className: 'hub-label'
+        });
+    });
+
+    // Sea-route arrival points: small filled black squares with italic
+    // labels. Visually subordinate to the open-circle hubs so the
+    // hierarchy reads "main migration hub > sea-route arrival point".
+    CITIES.forEach(function (c) {
+      var dir = c.dir || 'right';
+      var off = (
+        dir === 'left'  ? [-7,  0] :
+        dir === 'top'   ? [ 0, -7] :
+        dir === 'bottom'? [ 0,  7] :
+                          [ 7,  0]
+      );
+      L.circleMarker(c.latlng, {
+        radius:      3,
+        color:       '#222',
+        weight:      1,
+        fillColor:   '#222',
+        fillOpacity: 1,
+        interactive: false
+      }).addTo(map)
+        .bindTooltip(c.name, {
+          permanent: true,
+          direction: dir,
+          offset:    off,
+          className: 'city-label'
+        });
+    });
+
+    // 12c. Mount the on-map legend. Built here (not earlier) so it can
+    //      read the freshly hydrated palette + labels.
+    var legend = L.control({ position: 'topright' });
+    legend.onAdd = function () {
+      var div = L.DomUtil.create('div', 'map-legend');
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+
+      var routeOrder = [
+        'Western Africa / Atlantic route to the Canary Islands',
+        'Western Mediterranean',
+        'Central Mediterranean',
+        'Eastern Mediterranean',
+        'Mainland Europe to the UK',
+        'Other'
+      ];
+      var hasDots = {
+        'Western Africa / Atlantic route to the Canary Islands': true,
+        'Western Mediterranean': true,
+        'Central Mediterranean': true,
+        'Eastern Mediterranean': true,
+        'Mainland Europe to the UK': true
+      };
+      var html = '<div class="legend-title">Migration corridor</div>';
+      routeOrder.forEach(function (r) {
+        var c = ROUTE_COLORS[r];
+        var dot = hasDots[r]
+          ? '<span class="swatch" style="background:' + c + '"></span>'
+          : '<span class="swatch swatch-empty"></span>';
+        html += '<div class="legend-row">'
+          + dot
+          + '<span class="swatch-line" style="background:' + c + '"></span>'
+          + '<span>' + ROUTE_SHORT_LABELS[r] + '</span></div>';
+      });
+      html += '<div class="legend-note">Dots show recorded sea-route deaths only.</div>'
+        + '<div class="legend-divider"></div>'
+        + '<div class="legend-row">'
+        +   '<span class="swatch-line" style="background:#666;"></span>'
+        +   '<span>Major route</span></div>'
+        + '<div class="legend-row">'
+        +   '<span class="swatch-line minor" style="background:#666;"></span>'
+        +   '<span>Minor route</span></div>'
+        + '<div class="legend-row">'
+        +   '<span class="swatch-hub"></span>'
+        +   '<span>Main migration hub</span></div>'
+        + '<div class="legend-row">'
+        +   '<span class="swatch-city"></span>'
+        +   '<span>Sea-route arrival</span></div>'
+        + '<div class="legend-foot">'
+        + 'Dot size = number of dead or missing'
+        + '<div class="size-row">'
+        +   '<span class="size-dot" style="width:4px;height:4px;"></span>'
+        +   '<span class="size-dot" style="width:14px;height:14px;"></span>'
+        +   '<span class="size-dot" style="width:24px;height:24px;"></span>'
+        +   '<span style="margin-left:4px;">1 &middot; 50 &middot; 300+</span>'
+        + '</div>'
+        + '</div>';
+      div.innerHTML = html;
+      return div;
+    };
+    legend.addTo(map);
+
+    // 12d. Render incidents.
+    allFeatures.iom = gj.features;
+    initChoices();
+    populateRouteChoices();
+    buildHistData();
+    render();
+  });
+
+  window.addEventListener('resize', function () { drawHistogram(); });
 });
