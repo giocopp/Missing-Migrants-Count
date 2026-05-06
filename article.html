@@ -4,776 +4,151 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>How are dead and missing migrants at sea counted? — Data Bit 1</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Third-party libraries (Leaflet map, noUiSlider range, Choices.js multi-select) -->
+  <link  rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" />
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css" />
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
-  <style>
-    :root {
-      --text:        #1a1a1a;
-      --muted:       #6b6b6b;
-      --line:        #d8d8d8;
-      --accent:      #7a1b1b;
-      --bg:          #fafafa;
-      --bg-figure:   #ffffff;
-    }
 
-    * { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-      font-size: 18px;
-      line-height: 1.65;
-    }
-
-    article {
-      max-width: 920px;
-      margin: 0 auto;
-      padding: 64px 32px 96px;
-    }
-
-    .kicker {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 13px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 14px;
-    }
-
-    h1 {
-      font-size: 42px;
-      line-height: 1.15;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      margin: 0 0 14px;
-    }
-
-    .deck {
-      font-size: 21px;
-      line-height: 1.45;
-      color: var(--muted);
-      margin: 0 0 28px;
-      font-weight: 400;
-      text-align: left;
-      hyphens: manual;
-    }
-
-    .byline {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      padding: 12px 0;
-      margin: 0 0 36px;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .byline .author { color: var(--text); font-weight: 600; }
-
-    p {
-      margin: 0 0 22px;
-      text-align: justify;
-      hyphens: auto;
-      -webkit-hyphens: auto;
-    }
-    p.lede::first-letter {
-      float: left;
-      font-size: 64px;
-      line-height: 0.9;
-      font-weight: 700;
-      padding: 6px 8px 0 0;
-      color: var(--accent);
-    }
-
-    a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
-    a:hover { border-bottom-color: var(--accent); }
-
-    figure {
-      margin: 36px auto;
-      padding: 0;
-      background: var(--bg-figure);
-      max-width: 720px;
-    }
-    figure img,
-    figure video {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
-    figcaption {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.5;
-      padding: 12px 4px 0;
-    }
-    figcaption strong { color: var(--text); }
-
-    /* Custom video controls */
-    .player {
-      position: relative;
-      background: #000;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      background: #f3f3f3;
-      border-top: 1px solid var(--line);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 13px;
-    }
-    .controls button {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      padding: 6px 10px;
-      cursor: pointer;
-      color: var(--text);
-      font-size: 13px;
-      line-height: 1;
-      min-width: 36px;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .controls button:hover {
-      background: #efefef;
-      border-color: #b9b9b9;
-    }
-    .controls button:active { background: #e6e6e6; }
-    .controls .scrub {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 4px;
-      background: #d4d4d4;
-      border-radius: 2px;
-      outline: none;
-    }
-    .controls .scrub::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
-    }
-    .controls .scrub::-moz-range-thumb {
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
-      border: none;
-    }
-    .controls .time {
-      color: var(--muted);
-      font-variant-numeric: tabular-nums;
-      min-width: 90px;
-      text-align: right;
-    }
-
-    /* Leaflet map — main visual, breaks out of the 920 px article column
-       on viewports wide enough to show it. Falls back to article width
-       on narrower screens. */
-    .leaflet-figure { max-width: 1080px; }
-    @media (min-width: 1160px) {
-      .leaflet-figure {
-        margin-left:  -80px;   /* (920 - 1080) / 2 — pulls 80 px on each side */
-        margin-right: -80px;
-      }
-    }
-    #incident-map {
-      width: 100%;
-      height: 620px;
-      background: #eef0f2;
-    }
-    .map-toggle {
-      display: flex;
-      gap: 8px;
-      padding: 10px 12px;
-      background: #f3f3f3;
-      border-top: 1px solid var(--line);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 13px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .map-toggle .label {
-      color: var(--muted);
-      margin-right: 4px;
-    }
-    .map-toggle .active-source {
-      color: var(--text);
-      font-weight: 600;
-      letter-spacing: 0.005em;
-    }
-    .leaflet-tooltip.incident-tip {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.10);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 13px;
-      line-height: 1.5;
-      color: var(--text);
-      padding: 10px 14px;
-      min-width: 240px;
-      max-width: 420px;
-      white-space: normal;
-    }
-    .leaflet-tooltip.incident-tip strong { color: var(--text); }
-    .leaflet-tooltip.incident-tip .meta { color: var(--muted); margin-bottom: 4px; }
-    .leaflet-tooltip.incident-tip .deaths {
-      color: var(--accent); font-weight: 700;
-    }
-    /* Secondary tooltip rows (route / origin / aggregation / precision) */
-    .leaflet-tooltip.incident-tip .row {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-      margin-top: 3px;
-    }
-    .leaflet-tooltip.incident-tip .row .lab {
-      color: #9a9a9a;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      font-size: 10.5px;
-      margin-right: 4px;
-    }
-    .leaflet-tooltip.incident-tip .precision-flag {
-      display: inline-block;
-      margin-top: 4px;
-      padding: 2px 6px;
-      background: #f3eede;
-      color: #8a6a1a;
-      border-radius: 3px;
-      font-size: 11px;
-      letter-spacing: 0.02em;
-    }
-
-    /* On-map cause-of-death legend. Mounted via Leaflet's L.control so the
-       outer wrapper handles positioning; this class only styles the panel. */
-    .leaflet-control.map-legend,
-    .map-legend {
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      padding: 8px 10px 9px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 11.5px;
-      line-height: 1.4;
-      color: var(--text);
-      max-width: 210px;
-    }
-    .map-legend .legend-title {
-      font-weight: 700;
-      font-size: 11px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    .map-legend .legend-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 1.5px 0;
-    }
-    .map-legend .swatch {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex: 0 0 auto;
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
-    }
-    .map-legend .legend-foot {
-      margin-top: 6px;
-      padding-top: 5px;
-      border-top: 1px solid #ececec;
-      color: var(--muted);
-      font-size: 10.5px;
-      line-height: 1.4;
-    }
-    .map-legend .size-row {
-      display: flex; align-items: flex-end; gap: 6px; margin-top: 3px;
-    }
-    .map-legend .size-dot {
-      border-radius: 50%;
-      background: #b8b3b3;
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
-      flex: 0 0 auto;
-    }
-
-    /* "Showing X / Y events" caption above the map (replaces static title).
-       Updates from JS as source / years / filters change. */
-    .source-caption {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      line-height: 1.45;
-      color: var(--text);
-      padding: 0 4px 12px;
-    }
-    .source-caption .src-name {
-      font-weight: 700;
-      letter-spacing: 0.005em;
-    }
-    .source-caption .src-name.iom    { color: #2E5984; }
-    .source-caption .src-meta { color: var(--muted); }
-
-    /* Year-range slider bar (sits below the source toggle) */
-    .year-bar {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 14px 18px 16px;
-      background: #f3f3f3;
-      border-top: 1px solid var(--line);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 13px;
-      flex-wrap: wrap;
-    }
-    .year-bar .year-label {
-      color: var(--muted);
-      min-width: 36px;
-    }
-    .year-bar .year-readout {
-      color: var(--accent);
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      min-width: 110px;
-      text-align: center;
-    }
-    .year-bar .slider-wrap {
-      flex: 1;
-      min-width: 280px;
-      padding: 6px 6px 0;        /* small breathing room for handle overflow */
-      position: relative;
-      height: 78px;
-    }
-    /* Histogram of deaths per month — sits inside the slider rail.
-       Bars in the [from, to] window are accent red, bars outside are pale.
-       Pointer-events disabled so clicks pass through to the slider handles. */
-    .year-hist {
-      position: absolute;
-      top: 6px;
-      left: 6px;
-      right: 6px;
-      height: 56px;
-      pointer-events: none;
-      overflow: visible;
-    }
-    .year-hist .bar { transition: fill 0.12s; }
-    /* Year tick labels under the rail. Each <span> is positioned absolutely
-       at the percentage corresponding to its year — wired up in JS. */
-    .year-axis {
-      position: absolute;
-      left: 6px;
-      right: 6px;
-      bottom: 0;
-      height: 14px;
-      font-size: 10.5px;
-      color: var(--muted);
-      font-variant-numeric: tabular-nums;
-      pointer-events: none;
-    }
-    .year-axis span {
-      position: absolute;
-      top: 0;
-      transform: translateX(-50%);
-    }
-    /* Period dropdowns: a pair of (month, year) selects on each side, so the
-       user can pick start and end directly without dragging the slider. The
-       slider and these dropdowns share the same state — moving one updates
-       the other. */
-    .period-select {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
-    .period-select select {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      padding: 4px 6px;
-      font-family: inherit;
-      font-size: 12.5px;
-      color: var(--text);
-      cursor: pointer;
-      line-height: 1.1;
-    }
-    .period-select select:hover  { border-color: #b9b9b9; }
-    .period-select select:focus  { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .period-select .ps-year      { font-variant-numeric: tabular-nums; }
-    .period-select .period-sep   { color: var(--muted); padding: 0 2px; }
-    .year-bar button.reset-years {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      padding: 6px 10px;
-      cursor: pointer;
-      color: var(--text);
-      font-size: 12.5px;
-      line-height: 1;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .year-bar button.reset-years:hover {
-      background: #efefef;
-      border-color: #b9b9b9;
-    }
-
-    /* Filter bar with three multi-select dropdowns (Choices.js).
-       The three dropdowns sit side-by-side and wrap on narrow screens. */
-    .filter-bar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: 12px 18px;
-      padding: 14px 18px;
-      background: #f3f3f3;
-      border-top: 1px solid var(--line);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 13px;
-    }
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 220px;
-      flex: 1 1 220px;
-    }
-    .filter-group .filter-label {
-      color: var(--muted);
-      font-size: 12px;
-      letter-spacing: 0.02em;
-    }
-
-    /* Choices.js overrides — slimmer, monochrome, matches the article. */
-    .filter-bar .choices { margin-bottom: 0; font-size: 13px; }
-    .filter-bar .choices__inner {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      padding: 4px 6px 0 6px;
-      min-height: 30px;
-      font-size: 13px;
-    }
-    .filter-bar .choices.is-focused .choices__inner,
-    .filter-bar .choices.is-open    .choices__inner {
-      border-color: #9c9c9c;
-    }
-    .filter-bar .choices__list--multiple .choices__item {
-      background: #fff;
-      border: 1px solid var(--line);
-      color: var(--text);
-      border-radius: 3px;
-      padding: 2px 22px 2px 7px;
-      margin: 2px 4px 4px 0;
-      font-size: 12px;
-      line-height: 1.3;
-    }
-    .filter-bar .choices__list--multiple .choices__item .choices__button {
-      border-left: 1px solid #d0d0d0;
-      margin: 0 -18px 0 6px;
-      padding-left: 12px;
-      opacity: 0.6;
-    }
-    .filter-bar .choices__list--multiple .choices__item .choices__button:hover {
-      opacity: 1;
-    }
-    .filter-bar .choices__list--dropdown {
-      border: 1px solid #b9b9b9;
-      border-radius: 4px;
-      font-size: 13px;
-      /* Lift above Leaflet's panes (top out around z-index 1000) so the
-         dropdown isn't painted under the map when it opens. */
-      z-index: 1200;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
-    }
-    /* When a dropdown is open, raise its parent stacking context so the
-       absolutely-positioned list isn't clipped by sibling stacking contexts
-       (the map controls in particular). */
-    .filter-bar .choices.is-open {
-      position: relative;
-      z-index: 1200;
-    }
-    .filter-bar .choices__list--dropdown .choices__item--selectable {
-      padding: 6px 10px;
-    }
-    .filter-bar .choices__list--dropdown .choices__item--selectable.is-highlighted {
-      background: #ececec;
-    }
-    .filter-bar .choices__input {
-      background: transparent;
-      font-size: 13px;
-      font-family: inherit;
-    }
-
-    /* Cause-of-death color swatches: rendered as a ::before dot inside both
-       the dropdown options and the selected chips. The data-value attribute is
-       set by Choices.js from each <option value="..."> in the source select. */
-    .cause-choices .choices__list--dropdown .choices__item--selectable::before,
-    .cause-choices .choices__list--multiple .choices__item::before {
-      content: '';
-      display: inline-block;
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      margin-right: 7px;
-      vertical-align: -1px;
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
-      background: #c5c5c5;
-    }
-    .cause-choices .choices__item[data-value="drowning"]::before { background: #2E5984; }
-    .cause-choices .choices__item[data-value="vehicle"]::before  { background: #C75B12; }
-    .cause-choices .choices__item[data-value="violence"]::before { background: #B22A2A; }
-    .cause-choices .choices__item[data-value="exposure"]::before { background: #5C4F8A; }
-    .cause-choices .choices__item[data-value="sickness"]::before { background: #6B8E23; }
-    .cause-choices .choices__item[data-value="other"]::before    { background: #8A8784; }
-
-    /* noUiSlider — UNHCR-style brush. The rail is tall (matches histogram),
-       transparent so the bars show through; the connect bar is a faint tint
-       that highlights the selected range; handles are slim accent rectangles. */
-    .year-slider.noUi-target {
-      position: absolute;
-      top: 6px;
-      left: 6px;
-      right: 6px;
-      height: 56px !important;
-      background: transparent;
-      border: 1px solid #cdc7c7;
-      border-radius: 0;
-      box-shadow: none;
-    }
-    .year-slider .noUi-base { background: transparent; }
-    .year-slider .noUi-connects { background: transparent; }
-    .year-slider .noUi-connect {
-      background: rgba(122, 27, 27, 0.06);
-    }
-    .year-slider .noUi-handle {
-      width: 7px !important;
-      height: 66px !important;
-      top: -6px !important;
-      right: -3.5px !important;
-      border-radius: 1px !important;
-      background: var(--accent) !important;
-      border: 0 !important;
-      box-shadow: 0 0 4px rgba(0,0,0,0.18);
-      cursor: ew-resize;
-    }
-    .year-slider .noUi-handle:active { cursor: grabbing; }
-    .year-slider .noUi-handle::before,
-    .year-slider .noUi-handle::after { display: none; }
-    .year-slider .noUi-tooltip { display: none; }
-
-    /* Counts inline in the toggle bar, pushed to the right */
-    .map-counts {
-      margin-left: auto;
-      color: var(--muted);
-      font-size: 12.5px;
-      white-space: nowrap;
-    }
-    .map-counts .val {
-      color: var(--accent);
-      font-weight: 700;
-    }
-    .map-counts .sep {
-      margin: 0 8px;
-      color: #c4c4c4;
-    }
-    @media (max-width: 540px) {
-      .map-counts {
-        margin-left: 0;
-        flex-basis: 100%;
-        order: 10;
-        font-size: 12px;
-      }
-    }
-
-    /* Map annotations: cities, seas, SAR zones (override Leaflet's default
-       marker styling so these are pure text). */
-    .map-city, .map-sea, .map-sar {
-      background: none !important;
-      border: 0 !important;
-      pointer-events: none;
-    }
-
-    .map-city .city-dot {
-      position: absolute;
-      left: -3px; top: -3px;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: #1a1a1a;
-      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
-    }
-    .map-city .city-name {
-      position: absolute;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-weight: 700;
-      font-size: 12px;
-      color: #141414;
-      white-space: nowrap;
-      text-shadow:
-        -1px -1px 0 #fafafa, 1px -1px 0 #fafafa,
-        -1px  1px 0 #fafafa, 1px  1px 0 #fafafa,
-         0    0   3px #fafafa;
-    }
-    .map-city.dir-right .city-name { left:  8px; top: -7px; }
-    .map-city.dir-left  .city-name { right: 8px; top: -7px; }
-    .map-city.dir-above .city-name { left: 0; bottom: 8px; transform: translateX(-50%); }
-    .map-city.dir-below .city-name { left: 0; top: 8px;    transform: translateX(-50%); }
-
-    .map-sea .sea-name {
-      position: absolute;
-      font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-      font-style: italic;
-      color: #404040;
-      font-size: 13px;
-      white-space: nowrap;
-      left: 0; top: 0;
-      transform: translate(-50%, -50%);
-      text-shadow:
-        -1px -1px 0 #fafafa, 1px -1px 0 #fafafa,
-        -1px  1px 0 #fafafa, 1px  1px 0 #fafafa,
-         0    0   4px #fafafa;
-    }
-
-    .map-sar .sar-name {
-      position: absolute;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #888888;
-      white-space: nowrap;
-      left: 0; top: 0;
-      transform: translate(-50%, -50%);
-      text-shadow:
-        0 0 4px #fafafa, 0 0 4px #fafafa, 0 0 4px #fafafa;
-    }
-
-    hr.rule {
-      border: 0;
-      border-top: 1px solid var(--line);
-      margin: 48px 0 24px;
-    }
-
-    .sources {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-    .sources strong { color: var(--text); }
-    .sources a { color: var(--muted); border-bottom-color: #cfcfcf; }
-
-    @media (max-width: 540px) {
-      article { padding: 36px 18px 64px; }
-      h1 { font-size: 32px; }
-      .deck { font-size: 18px; }
-      body { font-size: 17px; }
-    }
-  </style>
+  <!-- Article styles + map data + main script (deferred → run in document order after parsing) -->
+  <link  rel="stylesheet" href="assets/style.css" />
+  <script defer src="assets/data.js"></script>
+  <script defer src="assets/article.js"></script>
+  <script defer src="assets/scrollytelling.js"></script>
 </head>
 <body>
+  <!-- Tag <html> with .reveal-mode synchronously, before the body parses,
+       so the .reveal CSS that hides scenes activates before any scene is
+       painted. Inlined (rather than imported) to avoid a flash of visible
+       content before the deferred scrollytelling.js runs. -->
+  <script>document.documentElement.classList.add('reveal-mode');</script>
+
   <article>
-    <div class="kicker">Data Bit 1 · E1493 Data Journalism 2026</div>
+    <!-- Scene 1 — title + subtitle + opening lede. The reader lands here,
+         so this scene has no .reveal class: it's visible from the start. -->
+    <section class="scene scene-intro">
+      <div class="kicker">Data Bit 1 · E1493 Data Journalism 2026</div>
 
-    <h1>How are dead and missing migrants at sea counted?</h1>
+      <h1>How are dead and missing migrants at sea counted?</h1>
 
-    <p class="deck">A verified ledger of migrant deaths on the four sea corridors to Europe, 2014–2026.</p>
+      <p class="deck">A verified ledger of migrant deaths on the four sea corridors to Europe, 2014–2026.</p>
 
-    <div class="byline">
-      <span class="author">Giorgio Coppola</span>
-      <span>April 2026</span>
-    </div>
-
-    <p class="lede"><!-- TODO: lede --></p>
-
-    <figure class="leaflet-figure">
-      <div class="source-caption">
-        <span>Showing</span>
-        <span class="src-name iom">IOM</span>'s
-        <span class="src-meta"><span class="src-count">—</span> events
-        between <span class="src-from">2014</span> and <span class="src-to">2026</span>.</span>
+      <div class="byline">
+        <span class="author">Giorgio Coppola</span>
+        <span>April 2026</span>
       </div>
-      <div id="incident-map" role="img" aria-label="Interactive map of migrant deaths recorded by the IOM Missing Migrants Project on the four sea corridors leading to Europe — Central, Western and Eastern Mediterranean and the Atlantic route to the Canary Islands. A year-range slider and three filter dropdowns control the visible window."></div>
-      <div class="map-toggle">
-        <span class="label">Source:</span>
-        <span class="active-source"
-              title="IOM Missing Migrants Project. UN agency record kept since 2014. Method: each incident verified through coast-guard reports, IOM country offices, news, sometimes survivor testimony.">IOM Missing Migrants Project · 2014–2026</span>
-        <div class="map-counts">
-          <span class="val records-val">—</span> recorded events
-          <span class="sep">·</span>
-          <span class="val deaths-val">—</span> dead or missing
-        </div>
-      </div>
-      <div class="year-bar">
-        <span class="year-label">Period</span>
-        <span class="period-select" aria-label="Period range">
-          <select class="ps-month ps-month-from" aria-label="From month"></select>
-          <select class="ps-year ps-year-from"  aria-label="From year"></select>
-          <span class="period-sep">–</span>
-          <select class="ps-month ps-month-to"  aria-label="To month"></select>
-          <select class="ps-year ps-year-to"    aria-label="To year"></select>
-        </span>
-        <div class="slider-wrap">
-          <svg class="year-hist" aria-hidden="true"
-               width="100%" height="100%"
-               preserveAspectRatio="none"></svg>
-          <div class="year-slider" aria-label="Period range slider"></div>
-          <div class="year-axis" aria-hidden="true"></div>
-        </div>
-        <button class="reset-years" type="button"
-                title="Clears the period range and all three filters (origin, route, cause).">Reset all</button>
-      </div>
-      <div class="filter-bar">
-        <div class="filter-group">
-          <label class="filter-label" for="origin-select">Region of origin</label>
-          <select id="origin-select" class="origin-select" multiple
-                  aria-label="Filter by region of origin">
-            <option value="sub_saharan_africa">Sub-Saharan Africa</option>
-            <option value="northern_africa">Northern Africa</option>
-            <option value="middle_east">Middle East / Levant</option>
-            <option value="south_central_asia">South / Central Asia</option>
-            <option value="europe">Europe</option>
-            <option value="other">Other</option>
-            <option value="unknown">Unknown</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label class="filter-label" for="route-select">Sea corridor</label>
-          <select id="route-select" class="route-select" multiple
-                  aria-label="Filter by sea corridor">
-            <!-- options populated dynamically from the loaded GeoJSONs -->
-          </select>
-        </div>
-        <div class="filter-group">
-          <label class="filter-label" for="cause-select">Cause of death</label>
-          <select id="cause-select" class="cause-select" multiple
-                  aria-label="Filter by cause of death">
-            <option value="drowning">Drowning</option>
-            <option value="vehicle">Vehicle / transport</option>
-            <option value="violence">Violence</option>
-            <option value="exposure">Exposure / cold / starvation</option>
-            <option value="sickness">Sickness</option>
-            <option value="other">Other / unknown</option>
-          </select>
-        </div>
-      </div>
-      <figcaption><strong>The IOM record at a glance.</strong> Each circle marks a reported event; size scales with the number of dead or missing. Hover a circle for details. Drag the slider handles, or use the month/year dropdowns, to set the visible window.</figcaption>
-    </figure>
 
-    <!-- TODO: body prose -->
+      <!-- Paragraph 1 — opening lede. Replace the bracketed text with the
+           actual prose. The .lede class adds the drop-cap; .placeholder is
+           the faded stub style that disappears as soon as you write real
+           prose (just remove the placeholder class). -->
+      <p class="lede placeholder">[Paragraph 1 — opening lede. Sets the scene for the data bit.]</p>
+
+      <div class="scroll-cue" aria-hidden="true">&#x2193;</div>
+    </section>
+
+    <!-- Scene 2 — explainer paragraph, the on-ramp into the map. -->
+    <section class="scene scene-explainer reveal">
+      <p class="placeholder">[Paragraph 2 — explainer. Briefly describes what the reader is about to see.]</p>
+    </section>
+
+    <!-- Scene 3 — the interactive map. Reveals as the reader arrives;
+         then they pause and explore. -->
+    <section class="scene scene-figure reveal">
+      <figure class="leaflet-figure">
+        <div class="source-caption">
+          <span>Showing</span>
+          <span class="src-name iom">IOM</span>'s
+          <span class="src-meta"><span class="src-count">—</span> events
+          between <span class="src-from">2014</span> and <span class="src-to">2026</span>.</span>
+        </div>
+        <div id="incident-map" role="img" aria-label="Interactive map of migrant deaths recorded by the IOM Missing Migrants Project on the four sea corridors leading to Europe — Central, Western and Eastern Mediterranean and the Atlantic route to the Canary Islands. A year-range slider and three filter dropdowns control the visible window."></div>
+        <div class="map-toggle">
+          <span class="label">Source:</span>
+          <span class="active-source"
+                title="IOM Missing Migrants Project. UN agency record kept since 2014. Method: each incident verified through coast-guard reports, IOM country offices, news, sometimes survivor testimony.">IOM Missing Migrants Project · 2014–2026</span>
+          <div class="map-counts">
+            <span class="val records-val">—</span> recorded events
+            <span class="sep">·</span>
+            <span class="val deaths-val">—</span> dead or missing
+          </div>
+        </div>
+        <div class="year-bar">
+          <span class="year-label">Period</span>
+          <span class="period-select" aria-label="Period range">
+            <select class="ps-month ps-month-from" aria-label="From month"></select>
+            <select class="ps-year ps-year-from"  aria-label="From year"></select>
+            <span class="period-sep">–</span>
+            <select class="ps-month ps-month-to"  aria-label="To month"></select>
+            <select class="ps-year ps-year-to"    aria-label="To year"></select>
+          </span>
+          <div class="slider-wrap">
+            <svg class="year-hist" aria-hidden="true"
+                 width="100%" height="100%"
+                 preserveAspectRatio="none"></svg>
+            <div class="year-slider" aria-label="Period range slider"></div>
+            <div class="year-axis" aria-hidden="true"></div>
+          </div>
+          <button class="reset-years" type="button"
+                  title="Clears the period range and all four filters (origin, route, cause, incident size).">Reset all</button>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label class="filter-label" for="origin-select">Region of origin</label>
+            <select id="origin-select" class="origin-select" multiple
+                    aria-label="Filter by region of origin">
+              <option value="sub_saharan_africa">Sub-Saharan Africa</option>
+              <option value="northern_africa">Northern Africa</option>
+              <option value="middle_east">Middle East / Levant</option>
+              <option value="south_central_asia">South / Central Asia</option>
+              <option value="europe">Europe</option>
+              <option value="other">Other</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label" for="route-select">Sea corridor</label>
+            <select id="route-select" class="route-select" multiple
+                    aria-label="Filter by sea corridor">
+              <!-- options populated dynamically from the loaded GeoJSON -->
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label" for="cause-select">Cause of death</label>
+            <select id="cause-select" class="cause-select" multiple
+                    aria-label="Filter by cause of death">
+              <option value="drowning">Drowning</option>
+              <option value="vehicle">Vehicle / transport</option>
+              <option value="violence">Violence</option>
+              <option value="exposure">Exposure / cold / starvation</option>
+              <option value="sickness">Sickness</option>
+              <option value="other">Other / unknown</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label" for="size-select">Incident size</label>
+            <select id="size-select" class="size-select" multiple
+                    aria-label="Filter by number of dead or missing per incident">
+              <option value="1">1 dead or missing</option>
+              <option value="2-10">2 – 10</option>
+              <option value="11-50">11 – 50</option>
+              <option value="51-300">51 – 300</option>
+              <option value="301+">301 or more</option>
+            </select>
+          </div>
+        </div>
+        <figcaption><strong>The IOM record at a glance.</strong> Each circle marks a reported event; size scales with the number of dead or missing. Hover a circle for details. Drag the slider handles, or use the month/year dropdowns, to set the visible window.</figcaption>
+      </figure>
+    </section>
+
+    <!-- Scene 4 — closing paragraph. Lands the takeaway after the reader
+         has explored the map. -->
+    <section class="scene scene-closing reveal">
+      <p class="placeholder">[Paragraph 3 — closing. Lands the takeaway after the reader has explored the map.]</p>
+    </section>
 
     <hr class="rule">
 
@@ -784,486 +159,5 @@
     </p>
 
   </article>
-
-  <script>
-    // ============================================================
-    // Interactive Leaflet map: migrant deaths on routes to Europe
-    // Source toggle (UNITED / IOM) + year-range slider.
-    // ============================================================
-    window.addEventListener('load', function () {
-      if (typeof L === 'undefined') return;  // Leaflet failed to load
-
-      var YEAR_MIN = 2014;       // IOM coverage starts here
-      var YEAR_MAX = 2026;
-      var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun',
-                         'Jul','Aug','Sep','Oct','Nov','Dec'];
-      var N_MONTHS    = (YEAR_MAX - YEAR_MIN + 1) * 12;   // 156
-      var FIXED_RANGE = { min: YEAR_MIN, max: YEAR_MAX };
-
-      // Slider value = months-since-Jan-YEAR_MIN (0 .. N_MONTHS-1).
-      function idxToYM(idx)         { return { year: YEAR_MIN + Math.floor(idx / 12), month: (idx % 12) + 1 }; }
-      function ymToIdx(year, month) { return (year - YEAR_MIN) * 12 + (month - 1); }
-      function fmtMY(idx) {
-        var ym = idxToYM(idx);
-        return MONTH_NAMES[ym.month - 1] + ' ' + ym.year;
-      }
-
-      var map = L.map('incident-map', {
-        center: [42.0, 14.0],     // Centred on Italy, fits Mediterranean + most of Europe
-        zoom: 4,
-        zoomSnap: 0.5,
-        scrollWheelZoom: false    // avoid hijacking page scroll
-      });
-
-      L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png',
-        {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-          subdomains: 'abcd',
-          maxZoom: 18
-        }
-      ).addTo(map);
-
-      // Re-enable scroll-zoom only when the user clicks/focuses the map
-      map.on('focus', function () { map.scrollWheelZoom.enable(); });
-      map.on('blur',  function () { map.scrollWheelZoom.disable(); });
-
-      // ---- Cause-of-death palette (must match the legend swatches) ----
-      var CAUSE_COLORS = {
-        drowning: '#2E5984',
-        vehicle:  '#C75B12',
-        violence: '#B22A2A',
-        exposure: '#5C4F8A',
-        sickness: '#6B8E23',
-        other:    '#8A8784'
-      };
-      var CAUSE_LABELS = {
-        drowning: 'Drowning',
-        vehicle:  'Vehicle / transport',
-        violence: 'Violence',
-        exposure: 'Exposure / cold / starvation',
-        sickness: 'Sickness',
-        other:    'Other / unknown'
-      };
-
-      function radiusFor(n) {
-        return Math.max(3.5, Math.sqrt(Math.max(1, n)) * 1.4);
-      }
-
-      // ---- On-map legend ----------------------------------------------------
-      // Decodes dot colour (cause of death) and dot size (number of dead).
-      // Mounted via L.control so Leaflet handles the corner anchoring.
-      var legend = L.control({ position: 'bottomleft' });
-      legend.onAdd = function () {
-        var div = L.DomUtil.create('div', 'map-legend');
-        L.DomEvent.disableClickPropagation(div);
-        L.DomEvent.disableScrollPropagation(div);
-
-        var rows = [
-          ['drowning', CAUSE_LABELS.drowning],
-          ['vehicle',  CAUSE_LABELS.vehicle],
-          ['violence', CAUSE_LABELS.violence],
-          ['exposure', CAUSE_LABELS.exposure],
-          ['sickness', CAUSE_LABELS.sickness],
-          ['other',    CAUSE_LABELS.other]
-        ];
-        var html = '<div class="legend-title">Cause of death</div>';
-        rows.forEach(function (r) {
-          html += '<div class="legend-row">'
-            + '<span class="swatch" style="background:' + CAUSE_COLORS[r[0]] + '"></span>'
-            + '<span>' + r[1] + '</span></div>';
-        });
-        html += '<div class="legend-foot">'
-          + 'Dot size = number of dead or missing'
-          + '<div class="size-row">'
-          +   '<span class="size-dot" style="width:7px;height:7px;"></span>'
-          +   '<span class="size-dot" style="width:11px;height:11px;"></span>'
-          +   '<span class="size-dot" style="width:18px;height:18px;"></span>'
-          +   '<span style="margin-left:4px;">1 &middot; 50 &middot; 500+</span>'
-          + '</div>'
-          + '</div>';
-        div.innerHTML = html;
-        return div;
-      };
-      legend.addTo(map);
-
-      var ORIGIN_LABELS = {
-        sub_saharan_africa: 'Sub-Saharan Africa',
-        northern_africa:    'Northern Africa',
-        middle_east:        'Middle East / Levant',
-        south_central_asia: 'South / Central Asia',
-        europe:             'Europe',
-        other:              'Other',
-        unknown:            'Unknown'
-      };
-      // UNITED labels date precision per row. IOM is always 'day'.
-      // Anything other than 'day' triggers an "approximate" flag on the tip.
-      var PRECISION_FLAGS = {
-        month:     'Date approximate — month only',
-        year_only: 'Date approximate — year only',
-        imprecise: 'Date approximate — exact day unknown'
-      };
-
-      function escapeHtml(s) {
-        return String(s == null ? '' : s)
-          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      }
-
-      function tip(p) {
-        var loc        = [p.location, p.country].filter(Boolean).join(', ');
-        var macroLabel = CAUSE_LABELS[p.cause_macro] || 'Unknown';
-        var origin     = ORIGIN_LABELS[p.origin_macro] || 'Unknown';
-        var html =
-          '<div class="meta">' + escapeHtml(p.date)
-            + (loc ? ' &middot; ' + escapeHtml(loc) : '') + '</div>'
-          + '<span class="deaths">' + p.n_dead + '</span> dead or missing'
-          + ' &middot; <em>' + escapeHtml(macroLabel) + '</em>';
-        if (p.cause) html += '<br>' + escapeHtml(p.cause);
-        if (p.route) {
-          html += '<div class="row"><span class="lab">Route</span>' + escapeHtml(p.route) + '</div>';
-        }
-        html += '<div class="row"><span class="lab">Origin</span>' + escapeHtml(origin) + '</div>';
-        if (p.n_rows && p.n_rows > 1) {
-          html += '<div class="row"><span class="lab">Aggregation</span>'
-               + p.n_rows + ' individual records collapsed into this event</div>';
-        }
-        var flag = PRECISION_FLAGS[p.date_precision];
-        if (flag) html += '<div class="precision-flag">' + escapeHtml(flag) + '</div>';
-        return html;
-      }
-
-      function buildLayer(features) {
-        // Largest first so smallest end up on top of the SVG stack and stay hoverable.
-        var sorted = features.slice().sort(function (a, b) {
-          return (b.properties.n_dead || 0) - (a.properties.n_dead || 0);
-        });
-        return L.geoJSON({ type: 'FeatureCollection', features: sorted }, {
-          pointToLayer: function (feat, latlng) {
-            var col = CAUSE_COLORS[feat.properties.cause_macro] || CAUSE_COLORS.other;
-            return L.circleMarker(latlng, {
-              radius:      radiusFor(feat.properties.n_dead),
-              fillColor:   col,
-              color:       col,
-              weight:      1,
-              fillOpacity: 0.55,
-              opacity:     0.85
-            });
-          },
-          onEachFeature: function (feat, layer) {
-            layer.bindTooltip(tip(feat.properties), {
-              className: 'incident-tip', sticky: true, direction: 'top',
-              offset: [0, -4]
-            });
-          }
-        });
-      }
-
-      // ---- State ----
-      // The three filter sets follow an "empty = no filter" convention: a
-      // feature passes when the filter set is empty OR the feature's value
-      // is in the set. This matches Choices.js's natural empty state.
-      var allFeatures = { iom: [] };
-      var activeLayer = null;
-      var currentSource = 'iom';
-      var monthFromIdx = 0, monthToIdx = N_MONTHS - 1;
-      var originFilter = new Set();
-      var routeFilter  = new Set();
-      var causeFilter  = new Set();
-
-      // ---- Counts / DOM ----
-      var countsRoot   = document.querySelector('.map-counts');
-      var sliderEl     = document.querySelector('.year-slider');
-      var histSvg      = document.querySelector('.year-hist');
-      var resetBtn     = document.querySelector('.reset-years');
-      var originSelect = document.querySelector('#origin-select');
-      var routeSelect  = document.querySelector('#route-select');
-      var causeSelect  = document.querySelector('#cause-select');
-      var captionEl    = document.querySelector('.source-caption');
-      var captionCount = captionEl && captionEl.querySelector('.src-count');
-      var captionFrom  = captionEl && captionEl.querySelector('.src-from');
-      var captionTo    = captionEl && captionEl.querySelector('.src-to');
-
-      function updateCounts(features) {
-        var n = features.length;
-        var sum = features.reduce(function (s, f) {
-          var v = f.properties.n_dead;
-          return s + (typeof v === 'number' ? v : (parseFloat(v) || 0));
-        }, 0);
-        if (countsRoot) {
-          countsRoot.querySelector('.records-val').textContent = n.toLocaleString();
-          countsRoot.querySelector('.deaths-val').textContent  = Math.round(sum).toLocaleString();
-        }
-        if (captionCount) captionCount.textContent = n.toLocaleString();
-      }
-
-      // Update the "Showing IOM's Y events between Mon YYYY and Mon YYYY."
-      // caption above the map. Called on every period change. The event count
-      // itself is set inside updateCounts() so it stays in sync with the
-      // visible set.
-      function updateSourceCaption() {
-        if (captionFrom) captionFrom.textContent = fmtMY(monthFromIdx);
-        if (captionTo)   captionTo.textContent   = fmtMY(monthToIdx);
-      }
-
-      // ---- Monthly-bin histogram of deaths (IOM, 2014–2026 = 156 bins) ----
-      var histCache = { iom: null };
-
-      function buildHistData() {
-        var counts = new Array(N_MONTHS).fill(0);
-        allFeatures.iom.forEach(function (f) {
-          var p = f.properties;
-          if (!p.date || p.year < YEAR_MIN || p.year > YEAR_MAX) return;
-          var month = parseInt(p.date.substring(5, 7), 10) || 1;
-          var idx   = ymToIdx(p.year, month);
-          if (idx >= 0 && idx < N_MONTHS) counts[idx] += (+p.n_dead || 0);
-        });
-        histCache.iom = { nMonths: N_MONTHS, counts: counts };
-      }
-
-      var SVG_NS = 'http://www.w3.org/2000/svg';
-
-      function drawHistogram() {
-        if (!histCache.iom) return;
-        var data    = histCache.iom;
-        var counts  = data.counts;
-        var nMonths = data.nMonths;
-        var maxN    = 0;
-        for (var i = 0; i < nMonths; i++) {
-          if (counts[i] > maxN) maxN = counts[i];
-        }
-        if (maxN === 0) maxN = 1;
-
-        // Fixed viewBox + non-uniform aspect ratio: all coords below are in
-        // 0–100 percentage space, the SVG stretches to its rendered size.
-        histSvg.setAttribute('viewBox', '0 0 100 100');
-        histSvg.setAttribute('preserveAspectRatio', 'none');
-
-        var slotW = 100 / nMonths;             // width of one month slot (%)
-        var bw    = slotW * 0.85;              // visible bar width (%)
-
-        // Wipe and rebuild children. createElementNS guarantees SVG namespace.
-        while (histSvg.firstChild) histSvg.removeChild(histSvg.firstChild);
-
-        for (var k = 0; k < nMonths; k++) {
-          var c = counts[k];
-          if (c === 0) continue;
-          var bh    = (c / maxN) * 99;
-          var bx    = k * slotW + slotW * 0.075;
-          var by    = 100 - bh;
-          var inRng = (k >= monthFromIdx && k <= monthToIdx);
-          var fill  = inRng ? '#7A1B1B' : '#c8c2c2';
-
-          var rect = document.createElementNS(SVG_NS, 'rect');
-          rect.setAttribute('class',  'bar');
-          rect.setAttribute('x',      bx.toFixed(4));
-          rect.setAttribute('y',      by.toFixed(2));
-          rect.setAttribute('width',  bw.toFixed(4));
-          rect.setAttribute('height', bh.toFixed(2));
-          rect.setAttribute('fill',   fill);
-          histSvg.appendChild(rect);
-        }
-      }
-
-      // ---- Axis ticks (every 2 years across the 2014-2026 rail) ----
-      function drawAxis() {
-        axisEl.innerHTML = '';
-        [2014, 2016, 2018, 2020, 2022, 2024, 2026].forEach(function (yr) {
-          var pct  = ((yr - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * 100;
-          var span = document.createElement('span');
-          span.textContent = yr;
-          span.style.left  = pct.toFixed(2) + '%';
-          axisEl.appendChild(span);
-        });
-      }
-
-      // ---- Render ----
-      function render() {
-        var feats = allFeatures.iom.filter(function (f) {
-          var p = f.properties;
-          if (!p.date) return false;
-          var month = parseInt(p.date.substring(5, 7), 10) || 1;
-          var idx   = ymToIdx(p.year, month);
-          if (idx < monthFromIdx || idx > monthToIdx) return false;
-          if (originFilter.size > 0 && !originFilter.has(p.origin_macro || 'unknown')) return false;
-          if (routeFilter.size  > 0 && !routeFilter.has(p.route)) return false;
-          var cm = p.cause_macro || 'other';
-          if (causeFilter.size > 0 && !causeFilter.has(cm)) return false;
-          return true;
-        });
-        if (activeLayer) { map.removeLayer(activeLayer); activeLayer = null; }
-        if (feats.length) {
-          activeLayer = buildLayer(feats).addTo(map);
-        }
-        updateCounts(feats);
-        drawHistogram();
-      }
-
-      var axisEl = document.querySelector('.year-axis');
-      drawAxis();
-
-      // ---- Load IOM GeoJSON once, then render ----
-      // The query string forces the browser to refetch when the data is rebuilt.
-      var DATA_VERSION = '2026-05-05-iomonly';
-      fetch('data/incidents_iom.geojson?v=' + DATA_VERSION)
-        .then(function (r) { return r.json(); })
-        .then(function (gj) {
-          allFeatures.iom = gj.features;
-          initChoices();
-          populateRouteChoices();
-          buildHistData();
-          render();
-        });
-
-      // Re-draw the histogram on resize so the bar widths stay aligned with
-      // the slider rail.
-      window.addEventListener('resize', function () { drawHistogram(); });
-
-      // ---- Period slider (noUiSlider, dual-thumb, month resolution) ----
-      // Slider value = months-since-Jan-2014 (0..N_MONTHS-1). The two month
-      // and two year dropdowns above the rail expose the same state — they
-      // are populated below and kept in sync via syncDropdowns().
-      noUiSlider.create(sliderEl, {
-        start: [0, N_MONTHS - 1],
-        connect: true,
-        step: 1,
-        range: { min: 0, max: N_MONTHS - 1 },
-        format: {
-          to:   function (value) { return Math.round(value); },
-          from: function (value) { return Number(value); }
-        }
-      });
-
-      // ---- Period dropdowns ----
-      var psMonthFrom = document.querySelector('.ps-month-from');
-      var psMonthTo   = document.querySelector('.ps-month-to');
-      var psYearFrom  = document.querySelector('.ps-year-from');
-      var psYearTo    = document.querySelector('.ps-year-to');
-
-      MONTH_NAMES.forEach(function (name, i) {
-        [psMonthFrom, psMonthTo].forEach(function (sel) {
-          var o = document.createElement('option');
-          o.value = i + 1;            // 1-12
-          o.textContent = name;
-          sel.appendChild(o);
-        });
-      });
-      for (var y = YEAR_MIN; y <= YEAR_MAX; y++) {
-        [psYearFrom, psYearTo].forEach(function (sel) {
-          var o = document.createElement('option');
-          o.value = y;
-          o.textContent = y;
-          sel.appendChild(o);
-        });
-      }
-
-      function syncDropdowns() {
-        var f = idxToYM(monthFromIdx);
-        var t = idxToYM(monthToIdx);
-        psMonthFrom.value = f.month;
-        psYearFrom.value  = f.year;
-        psMonthTo.value   = t.month;
-        psYearTo.value    = t.year;
-      }
-
-      function onPeriodSelectChange() {
-        var fIdx = ymToIdx(parseInt(psYearFrom.value, 10),
-                           parseInt(psMonthFrom.value, 10));
-        var tIdx = ymToIdx(parseInt(psYearTo.value, 10),
-                           parseInt(psMonthTo.value, 10));
-        // Keep coherent: if user picks a "to" before "from", snap "to" up.
-        if (tIdx < fIdx) tIdx = fIdx;
-        sliderEl.noUiSlider.set([fIdx, tIdx]);   // fires 'update' → render
-      }
-      [psMonthFrom, psMonthTo, psYearFrom, psYearTo].forEach(function (s) {
-        s.addEventListener('change', onPeriodSelectChange);
-      });
-
-      sliderEl.noUiSlider.on('update', function (values) {
-        monthFromIdx = parseInt(values[0], 10);
-        monthToIdx   = parseInt(values[1], 10);
-        syncDropdowns();
-        updateSourceCaption();
-        render();
-      });
-
-      // Reset all: clears period range AND all three filter selections.
-      // Each Choices.js removeActiveItems() call fires a 'change' event on
-      // the underlying <select>, which our listeners convert back to empty
-      // filter Sets and trigger a render. Setting the slider also fires
-      // 'update' → render(). We call render() at the end as a safety net for
-      // the rare case where Choices.js is still loading.
-      resetBtn.addEventListener('click', function () {
-        sliderEl.noUiSlider.set([0, N_MONTHS - 1]);
-        if (originChoices) originChoices.removeActiveItems();
-        if (routeChoices)  routeChoices.removeActiveItems();
-        if (causeChoices)  causeChoices.removeActiveItems();
-        originFilter = new Set();
-        routeFilter  = new Set();
-        causeFilter  = new Set();
-        render();
-      });
-
-      // ---- Choices.js multi-select dropdowns ----
-      // Origin and cause have static option lists in the HTML. Route options
-      // are populated from the loaded GeoJSONs and re-populated on source
-      // toggle (IOM and UNITED use different route vocabularies).
-      var originChoices = null, routeChoices = null, causeChoices = null;
-
-      function initChoices() {
-        if (typeof Choices === 'undefined') return;
-        var common = {
-          removeItemButton:       true,
-          shouldSort:             false,
-          placeholder:            true,
-          placeholderValue:       'All',
-          searchPlaceholderValue: 'Search…',
-          allowHTML:              false
-        };
-        originChoices = new Choices(originSelect, Object.assign({}, common,
-          { searchEnabled: false }));
-        causeChoices  = new Choices(causeSelect,  Object.assign({}, common,
-          { searchEnabled: false }));
-        // Tag the cause wrapper so the color-swatch CSS scopes to it only.
-        causeChoices.containerOuter.element.classList.add('cause-choices');
-        routeChoices = new Choices(routeSelect, Object.assign({}, common,
-          { searchEnabled: true }));
-
-        originSelect.addEventListener('change', function () {
-          originFilter = new Set(originChoices.getValue(true));
-          render();
-        });
-        causeSelect.addEventListener('change', function () {
-          causeFilter = new Set(causeChoices.getValue(true));
-          render();
-        });
-        routeSelect.addEventListener('change', function () {
-          routeFilter = new Set(routeChoices.getValue(true));
-          render();
-        });
-      }
-
-      // Build the route dropdown options from IOM's loaded features. Sorted
-      // by frequency desc so the most common routes float to the top.
-      function populateRouteChoices() {
-        if (!routeChoices) return;
-        var counts = {};
-        ['iom'].forEach(function (src) {
-          allFeatures[src].forEach(function (f) {
-            var v = f.properties.route;
-            if (v == null || v === '') return;
-            counts[v] = (counts[v] || 0) + 1;
-          });
-        });
-        var sorted = Object.keys(counts).sort(function (a, b) {
-          return counts[b] - counts[a];
-        });
-        var opts = sorted.map(function (v) {
-          return { value: v, label: v };
-        });
-        routeChoices.clearStore();
-        routeChoices.setChoices(opts, 'value', 'label', true);
-      }
-    });
-  </script>
 </body>
 </html>

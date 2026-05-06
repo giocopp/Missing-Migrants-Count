@@ -1,0 +1,630 @@
+// ============================================================
+// Interactive Leaflet map: migrant deaths on routes to Europe.
+// ----
+// Loads incident GeoJSON, renders death points sized by toll and
+// coloured by sea corridor, overlays the migration-route polylines
+// and hubs from data.js, and wires up the year-range slider, four
+// filter dropdowns (origin, route, cause, incident-size) and the
+// reset button.
+//
+// Depends on (loaded as plain <script>s before this file):
+//   - Leaflet           (window.L)
+//   - noUiSlider        (window.noUiSlider)
+//   - Choices.js        (window.Choices)
+//   - data.js exposes:  ROUTE_COLORS, ROUTE_SHORT_LABELS,
+//                       CAUSE_LABELS, ORIGIN_LABELS, PRECISION_FLAGS,
+//                       HUBS, ROUTE_LINES
+//
+// Sections, in order:
+//   1.  Time helpers (slider index ↔ year/month)
+//   2.  Map setup (Leaflet, fullscreen control, basemap)
+//   3.  Size encoding (radius + bucket)
+//   4.  Route polylines + hubs (rendered once, below the live layer)
+//   5.  On-map legend
+//   6.  Tooltip + layer builder
+//   7.  State + DOM refs
+//   8.  Counts + source caption
+//   9.  Histogram + axis ticks
+//  10.  render()
+//  11.  Data load
+//  12.  Period slider + dropdowns
+//  13.  Reset all
+//  14.  Choices.js multi-select setup
+// ============================================================
+
+window.addEventListener('load', function () {
+  if (typeof L === 'undefined') return;  // Leaflet failed to load
+
+  // ---- 1. Time helpers ------------------------------------------------
+  var YEAR_MIN = 2014;       // IOM coverage starts here
+  var YEAR_MAX = 2026;
+  var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun',
+                     'Jul','Aug','Sep','Oct','Nov','Dec'];
+  var N_MONTHS = (YEAR_MAX - YEAR_MIN + 1) * 12;   // 156
+
+  // Slider value = months-since-Jan-YEAR_MIN (0 .. N_MONTHS-1).
+  function idxToYM(idx)         { return { year: YEAR_MIN + Math.floor(idx / 12), month: (idx % 12) + 1 }; }
+  function ymToIdx(year, month) { return (year - YEAR_MIN) * 12 + (month - 1); }
+  function fmtMY(idx) {
+    var ym = idxToYM(idx);
+    return MONTH_NAMES[ym.month - 1] + ' ' + ym.year;
+  }
+
+
+  // ---- 2. Map setup ---------------------------------------------------
+  var map = L.map('incident-map', {
+    center: [42.0, 14.0],     // Italy: fits Mediterranean + most of Europe
+    zoom: 4,
+    zoomSnap: 0.5,
+    scrollWheelZoom: false,   // avoid hijacking page scroll
+    zoomControl: false        // we add this manually below so the
+                              // fullscreen button can sit on top of it
+  });
+
+  // Fullscreen control + zoom (topleft, fullscreen on top). Leaflet stacks
+  // same-corner controls in insertion order, so we add the fullscreen
+  // button first, then the zoom control below it.
+  var fullscreenControl = L.control({ position: 'topleft' });
+  fullscreenControl.onAdd = function () {
+    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    var btn = L.DomUtil.create('a', 'leaflet-control-fullscreen-btn', container);
+    btn.href = '#';
+    btn.title = 'View map in fullscreen';
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('aria-label', 'Toggle fullscreen view');
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+      '<path fill="currentColor" d="M5 5h5V3H3v7h2V5zm14 0v5h2V3h-7v2h5z' +
+      'M5 19h5v2H3v-7h2v5zm14 0v-5h2v7h-7v-2h5z"/></svg>';
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.on(btn, 'click', function (e) {
+      L.DomEvent.preventDefault(e);
+      L.DomEvent.stopPropagation(e);
+      // Fullscreen the entire figure so the period bar and the four
+      // filter dropdowns stay reachable in fullscreen mode. Falls back
+      // to the map container if the figure can't be found.
+      var elem  = document.querySelector('.leaflet-figure') ||
+                  map.getContainer();
+      var doc   = document;
+      var fsEl  = doc.fullscreenElement || doc.webkitFullscreenElement ||
+                  doc.mozFullScreenElement || doc.msFullscreenElement;
+      if (!fsEl) {
+        var req = elem.requestFullscreen      || elem.webkitRequestFullscreen ||
+                  elem.mozRequestFullScreen   || elem.msRequestFullscreen;
+        if (req) req.call(elem);
+      } else {
+        var exit = doc.exitFullscreen         || doc.webkitExitFullscreen ||
+                   doc.mozCancelFullScreen    || doc.msExitFullscreen;
+        if (exit) exit.call(doc);
+      }
+    });
+    return container;
+  };
+  fullscreenControl.addTo(map);
+  L.control.zoom({ position: 'topleft' }).addTo(map);
+
+  // After entering/exiting fullscreen the map element changes size; tell
+  // Leaflet to recompute its viewport so tiles and markers re-align.
+  ['fullscreenchange', 'webkitfullscreenchange',
+   'mozfullscreenchange', 'MSFullscreenChange'].forEach(function (ev) {
+    document.addEventListener(ev, function () {
+      setTimeout(function () { map.invalidateSize(); }, 100);
+    });
+  });
+
+  // CartoDB Positron — light grey basemap with country, sea/ocean and
+  // major-city labels. Pairs well with the death-toll dots and gives
+  // the reader geographic anchors without crowding the map.
+  L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 18
+    }
+  ).addTo(map);
+
+  // Re-enable scroll-zoom only when the user clicks/focuses the map.
+  map.on('focus', function () { map.scrollWheelZoom.enable(); });
+  map.on('blur',  function () { map.scrollWheelZoom.disable(); });
+
+
+  // ---- 3. Size encoding ----------------------------------------------
+  // Minimum radius is deliberately small so 1-death incidents render as a
+  // faint dot, leaving visual room for the larger events to dominate.
+  function radiusFor(n) {
+    return Math.max(2, Math.sqrt(Math.max(1, n)) * 1.4);
+  }
+  function sizeBucket(n) {
+    var v = +n;
+    if (!isFinite(v) || v <= 1) return '1';
+    if (v <= 10)  return '2-10';
+    if (v <= 50)  return '11-50';
+    if (v <= 300) return '51-300';
+    return '301+';
+  }
+
+
+  // ---- 4. Route polylines + hubs (added once, stay below the live
+  // death-points layer that gets rebuilt on every filter change).
+  // Polylines are semi-transparent so the dots stay readable on top.
+  ROUTE_LINES.forEach(function (line) {
+    L.polyline(line.coords, {
+      color:        ROUTE_COLORS[line.route] || '#888',
+      weight:       line.major ? 4 : 1.8,
+      opacity:      line.major ? 0.55 : 0.45,
+      smoothFactor: 1.5,
+      lineCap:      'round',
+      lineJoin:     'round',
+      interactive:  false   // don't steal hover from the death points
+    }).addTo(map);
+  });
+  HUBS.forEach(function (hub) {
+    var dir = hub.dir || 'right';
+    // Offset moves the label outward in the chosen direction so it sits
+    // off the marker edge rather than on top of it.
+    var off = (
+      dir === 'left'  ? [-8,  0] :
+      dir === 'top'   ? [ 0, -8] :
+      dir === 'bottom'? [ 0,  8] :
+                        [ 8,  0]
+    );
+    L.circleMarker(hub.latlng, {
+      radius:      5,
+      color:       '#222',
+      weight:      2,
+      fillColor:   '#fff',
+      fillOpacity: 1,
+      interactive: false
+    }).addTo(map)
+      .bindTooltip(hub.name, {
+        permanent: true,
+        direction: dir,
+        offset:    off,
+        className: 'hub-label'
+      });
+  });
+
+
+  // ---- 5. On-map legend ----------------------------------------------
+  // Decodes dot color (sea corridor) and dot size (number of dead), and
+  // explains the line overlay (six migration corridors, with major vs.
+  // connecting weights). Mounted via L.control so Leaflet handles the
+  // corner anchoring.
+  var legend = L.control({ position: 'topright' });
+  legend.onAdd = function () {
+    var div = L.DomUtil.create('div', 'map-legend');
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+
+    // Order matches the reference figure's legend (top-to-bottom):
+    // West Africa, Western Med, Central Med, Eastern Med, East Africa, Other.
+    var routeOrder = [
+      'Western Africa / Atlantic route to the Canary Islands',
+      'Western Mediterranean',
+      'Central Mediterranean',
+      'Eastern Mediterranean',
+      'East Africa',
+      'Other'
+    ];
+    // Sea-route corridors (have death dots in the data); land corridors
+    // (East Africa, Other) only render as overlay context.
+    var hasDots = {
+      'Western Africa / Atlantic route to the Canary Islands': true,
+      'Western Mediterranean': true,
+      'Central Mediterranean': true,
+      'Eastern Mediterranean': true
+    };
+    var html = '<div class="legend-title">Migration corridor</div>';
+    routeOrder.forEach(function (r) {
+      var c = ROUTE_COLORS[r];
+      var dot = hasDots[r]
+        ? '<span class="swatch" style="background:' + c + '"></span>'
+        : '<span class="swatch swatch-empty"></span>';
+      html += '<div class="legend-row">'
+        + dot
+        + '<span class="swatch-line" style="background:' + c + '"></span>'
+        + '<span>' + ROUTE_SHORT_LABELS[r] + '</span></div>';
+    });
+    html += '<div class="legend-note">Dots show recorded sea-route deaths only.</div>';
+    html += '<div class="legend-divider"></div>'
+      + '<div class="legend-row">'
+      +   '<span class="swatch-line" style="background:#666;"></span>'
+      +   '<span>Major route</span></div>'
+      + '<div class="legend-row">'
+      +   '<span class="swatch-line minor" style="background:#666;"></span>'
+      +   '<span>Connecting route</span></div>'
+      + '<div class="legend-row">'
+      +   '<span class="swatch-hub"></span>'
+      +   '<span>Main migration hub</span></div>';
+    html += '<div class="legend-foot">'
+      + 'Dot size = number of dead or missing'
+      + '<div class="size-row">'
+      +   '<span class="size-dot" style="width:4px;height:4px;"></span>'
+      +   '<span class="size-dot" style="width:14px;height:14px;"></span>'
+      +   '<span class="size-dot" style="width:24px;height:24px;"></span>'
+      +   '<span style="margin-left:4px;">1 &middot; 50 &middot; 300+</span>'
+      + '</div>'
+      + '</div>';
+    div.innerHTML = html;
+    return div;
+  };
+  legend.addTo(map);
+
+
+  // ---- 6. Tooltip + layer builder ------------------------------------
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function tip(p) {
+    var loc        = [p.location, p.country].filter(Boolean).join(', ');
+    var macroLabel = CAUSE_LABELS[p.cause_macro] || 'Unknown';
+    var origin     = ORIGIN_LABELS[p.origin_macro] || 'Unknown';
+    var html =
+      '<div class="meta">' + escapeHtml(p.date)
+        + (loc ? ' &middot; ' + escapeHtml(loc) : '') + '</div>'
+      + '<span class="deaths">' + p.n_dead + '</span> dead or missing'
+      + ' &middot; <em>' + escapeHtml(macroLabel) + '</em>';
+    if (p.cause) html += '<br>' + escapeHtml(p.cause);
+    if (p.route) {
+      html += '<div class="row"><span class="lab">Route</span>' + escapeHtml(p.route) + '</div>';
+    }
+    html += '<div class="row"><span class="lab">Origin</span>' + escapeHtml(origin) + '</div>';
+    if (p.n_rows && p.n_rows > 1) {
+      html += '<div class="row"><span class="lab">Aggregation</span>'
+           + p.n_rows + ' individual records collapsed into this event</div>';
+    }
+    var flag = PRECISION_FLAGS[p.date_precision];
+    if (flag) html += '<div class="precision-flag">' + escapeHtml(flag) + '</div>';
+    return html;
+  }
+
+  function buildLayer(features) {
+    // Largest first so smallest end up on top of the SVG stack and stay hoverable.
+    var sorted = features.slice().sort(function (a, b) {
+      return (b.properties.n_dead || 0) - (a.properties.n_dead || 0);
+    });
+    return L.geoJSON({ type: 'FeatureCollection', features: sorted }, {
+      pointToLayer: function (feat, latlng) {
+        var col = ROUTE_COLORS[feat.properties.route] || '#8A8784';
+        return L.circleMarker(latlng, {
+          radius:      radiusFor(feat.properties.n_dead),
+          fillColor:   col,
+          color:       col,
+          weight:      1,
+          fillOpacity: 0.55,
+          opacity:     0.85
+        });
+      },
+      onEachFeature: function (feat, layer) {
+        layer.bindTooltip(tip(feat.properties), {
+          className: 'incident-tip', sticky: true, direction: 'top',
+          offset: [0, -4]
+        });
+      }
+    });
+  }
+
+
+  // ---- 7. State + DOM refs -------------------------------------------
+  // Filter sets follow an "empty = no filter" convention: a feature
+  // passes when the filter set is empty OR the feature's value is in the
+  // set. Matches Choices.js's natural empty state.
+  var allFeatures = { iom: [] };
+  var activeLayer = null;
+  var monthFromIdx = 0, monthToIdx = N_MONTHS - 1;
+  var originFilter = new Set();
+  var routeFilter  = new Set();
+  var causeFilter  = new Set();
+  var sizeFilter   = new Set();
+
+  var countsRoot   = document.querySelector('.map-counts');
+  var sliderEl     = document.querySelector('.year-slider');
+  var histSvg      = document.querySelector('.year-hist');
+  var resetBtn     = document.querySelector('.reset-years');
+  var originSelect = document.querySelector('#origin-select');
+  var routeSelect  = document.querySelector('#route-select');
+  var causeSelect  = document.querySelector('#cause-select');
+  var sizeSelect   = document.querySelector('#size-select');
+  var captionEl    = document.querySelector('.source-caption');
+  var captionCount = captionEl && captionEl.querySelector('.src-count');
+  var captionFrom  = captionEl && captionEl.querySelector('.src-from');
+  var captionTo    = captionEl && captionEl.querySelector('.src-to');
+  var axisEl       = document.querySelector('.year-axis');
+
+
+  // ---- 8. Counts + source caption ------------------------------------
+  function updateCounts(features) {
+    var n = features.length;
+    var sum = features.reduce(function (s, f) {
+      var v = f.properties.n_dead;
+      return s + (typeof v === 'number' ? v : (parseFloat(v) || 0));
+    }, 0);
+    if (countsRoot) {
+      countsRoot.querySelector('.records-val').textContent = n.toLocaleString();
+      countsRoot.querySelector('.deaths-val').textContent  = Math.round(sum).toLocaleString();
+    }
+    if (captionCount) captionCount.textContent = n.toLocaleString();
+  }
+
+  // Update the "Showing IOM's Y events between Mon YYYY and Mon YYYY."
+  // caption above the map. Called on every period change. The event count
+  // itself is set inside updateCounts() so it stays in sync with the
+  // visible set.
+  function updateSourceCaption() {
+    if (captionFrom) captionFrom.textContent = fmtMY(monthFromIdx);
+    if (captionTo)   captionTo.textContent   = fmtMY(monthToIdx);
+  }
+
+
+  // ---- 9. Histogram + axis ticks -------------------------------------
+  // Monthly-bin histogram of deaths (IOM, 2014–2026 = 156 bins). Bars in
+  // the [from, to] window are accent red; bars outside are pale.
+  var histCache = { iom: null };
+  var SVG_NS    = 'http://www.w3.org/2000/svg';
+
+  function buildHistData() {
+    var counts = new Array(N_MONTHS).fill(0);
+    allFeatures.iom.forEach(function (f) {
+      var p = f.properties;
+      if (!p.date || p.year < YEAR_MIN || p.year > YEAR_MAX) return;
+      var month = parseInt(p.date.substring(5, 7), 10) || 1;
+      var idx   = ymToIdx(p.year, month);
+      if (idx >= 0 && idx < N_MONTHS) counts[idx] += (+p.n_dead || 0);
+    });
+    histCache.iom = { nMonths: N_MONTHS, counts: counts };
+  }
+
+  function drawHistogram() {
+    if (!histCache.iom) return;
+    var data    = histCache.iom;
+    var counts  = data.counts;
+    var nMonths = data.nMonths;
+    var maxN    = 0;
+    for (var i = 0; i < nMonths; i++) {
+      if (counts[i] > maxN) maxN = counts[i];
+    }
+    if (maxN === 0) maxN = 1;
+
+    // Fixed viewBox + non-uniform aspect ratio: all coords below are in
+    // 0–100 percentage space, the SVG stretches to its rendered size.
+    histSvg.setAttribute('viewBox', '0 0 100 100');
+    histSvg.setAttribute('preserveAspectRatio', 'none');
+
+    var slotW = 100 / nMonths;             // width of one month slot (%)
+    var bw    = slotW * 0.85;              // visible bar width (%)
+
+    // Wipe and rebuild children. createElementNS guarantees SVG namespace.
+    while (histSvg.firstChild) histSvg.removeChild(histSvg.firstChild);
+
+    for (var k = 0; k < nMonths; k++) {
+      var c = counts[k];
+      if (c === 0) continue;
+      var bh    = (c / maxN) * 99;
+      var bx    = k * slotW + slotW * 0.075;
+      var by    = 100 - bh;
+      var inRng = (k >= monthFromIdx && k <= monthToIdx);
+      var fill  = inRng ? '#7A1B1B' : '#c8c2c2';
+
+      var rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('class',  'bar');
+      rect.setAttribute('x',      bx.toFixed(4));
+      rect.setAttribute('y',      by.toFixed(2));
+      rect.setAttribute('width',  bw.toFixed(4));
+      rect.setAttribute('height', bh.toFixed(2));
+      rect.setAttribute('fill',   fill);
+      histSvg.appendChild(rect);
+    }
+  }
+
+  // Year tick labels under the rail. One <span> per even year, positioned
+  // at the percentage corresponding to its year.
+  function drawAxis() {
+    axisEl.innerHTML = '';
+    [2014, 2016, 2018, 2020, 2022, 2024, 2026].forEach(function (yr) {
+      var pct  = ((yr - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * 100;
+      var span = document.createElement('span');
+      span.textContent = yr;
+      span.style.left  = pct.toFixed(2) + '%';
+      axisEl.appendChild(span);
+    });
+  }
+  drawAxis();
+
+
+  // ---- 10. render() --------------------------------------------------
+  function render() {
+    var feats = allFeatures.iom.filter(function (f) {
+      var p = f.properties;
+      if (!p.date) return false;
+      var month = parseInt(p.date.substring(5, 7), 10) || 1;
+      var idx   = ymToIdx(p.year, month);
+      if (idx < monthFromIdx || idx > monthToIdx) return false;
+      if (originFilter.size > 0 && !originFilter.has(p.origin_macro || 'unknown')) return false;
+      if (routeFilter.size  > 0 && !routeFilter.has(p.route)) return false;
+      var cm = p.cause_macro || 'other';
+      if (causeFilter.size > 0 && !causeFilter.has(cm)) return false;
+      if (sizeFilter.size  > 0 && !sizeFilter.has(sizeBucket(p.n_dead))) return false;
+      return true;
+    });
+    if (activeLayer) { map.removeLayer(activeLayer); activeLayer = null; }
+    if (feats.length) {
+      activeLayer = buildLayer(feats).addTo(map);
+    }
+    updateCounts(feats);
+    drawHistogram();
+  }
+
+
+  // ---- 11. Data load -------------------------------------------------
+  // The query string forces the browser to refetch when the data is rebuilt.
+  var DATA_VERSION = '2026-05-05-iomonly';
+  fetch('data/incidents_iom.geojson?v=' + DATA_VERSION)
+    .then(function (r) { return r.json(); })
+    .then(function (gj) {
+      allFeatures.iom = gj.features;
+      initChoices();
+      populateRouteChoices();
+      buildHistData();
+      render();
+    });
+
+  // Re-draw the histogram on resize so the bar widths stay aligned with
+  // the slider rail.
+  window.addEventListener('resize', function () { drawHistogram(); });
+
+
+  // ---- 12. Period slider + dropdowns ---------------------------------
+  // Slider value = months-since-Jan-2014 (0..N_MONTHS-1). The two month
+  // and two year dropdowns above the rail expose the same state — they
+  // are populated below and kept in sync via syncDropdowns().
+  noUiSlider.create(sliderEl, {
+    start: [0, N_MONTHS - 1],
+    connect: true,
+    step: 1,
+    range: { min: 0, max: N_MONTHS - 1 },
+    format: {
+      to:   function (value) { return Math.round(value); },
+      from: function (value) { return Number(value); }
+    }
+  });
+
+  var psMonthFrom = document.querySelector('.ps-month-from');
+  var psMonthTo   = document.querySelector('.ps-month-to');
+  var psYearFrom  = document.querySelector('.ps-year-from');
+  var psYearTo    = document.querySelector('.ps-year-to');
+
+  MONTH_NAMES.forEach(function (name, i) {
+    [psMonthFrom, psMonthTo].forEach(function (sel) {
+      var o = document.createElement('option');
+      o.value = i + 1;            // 1-12
+      o.textContent = name;
+      sel.appendChild(o);
+    });
+  });
+  for (var y = YEAR_MIN; y <= YEAR_MAX; y++) {
+    [psYearFrom, psYearTo].forEach(function (sel) {
+      var o = document.createElement('option');
+      o.value = y;
+      o.textContent = y;
+      sel.appendChild(o);
+    });
+  }
+
+  function syncDropdowns() {
+    var f = idxToYM(monthFromIdx);
+    var t = idxToYM(monthToIdx);
+    psMonthFrom.value = f.month;
+    psYearFrom.value  = f.year;
+    psMonthTo.value   = t.month;
+    psYearTo.value    = t.year;
+  }
+
+  function onPeriodSelectChange() {
+    var fIdx = ymToIdx(parseInt(psYearFrom.value, 10),
+                       parseInt(psMonthFrom.value, 10));
+    var tIdx = ymToIdx(parseInt(psYearTo.value, 10),
+                       parseInt(psMonthTo.value, 10));
+    // Keep coherent: if user picks a "to" before "from", snap "to" up.
+    if (tIdx < fIdx) tIdx = fIdx;
+    sliderEl.noUiSlider.set([fIdx, tIdx]);   // fires 'update' → render
+  }
+  [psMonthFrom, psMonthTo, psYearFrom, psYearTo].forEach(function (s) {
+    s.addEventListener('change', onPeriodSelectChange);
+  });
+
+  sliderEl.noUiSlider.on('update', function (values) {
+    monthFromIdx = parseInt(values[0], 10);
+    monthToIdx   = parseInt(values[1], 10);
+    syncDropdowns();
+    updateSourceCaption();
+    render();
+  });
+
+
+  // ---- 13. Reset all -------------------------------------------------
+  // Clears period range AND all four filter selections. Each Choices.js
+  // removeActiveItems() call fires a 'change' event on the underlying
+  // <select>, which our listeners convert back to empty filter Sets and
+  // trigger a render. Setting the slider also fires 'update' → render().
+  // We call render() at the end as a safety net for the rare case where
+  // Choices.js is still loading.
+  resetBtn.addEventListener('click', function () {
+    sliderEl.noUiSlider.set([0, N_MONTHS - 1]);
+    if (originChoices) originChoices.removeActiveItems();
+    if (routeChoices)  routeChoices.removeActiveItems();
+    if (causeChoices)  causeChoices.removeActiveItems();
+    if (sizeChoices)   sizeChoices.removeActiveItems();
+    originFilter = new Set();
+    routeFilter  = new Set();
+    causeFilter  = new Set();
+    sizeFilter   = new Set();
+    render();
+  });
+
+
+  // ---- 14. Choices.js multi-select setup -----------------------------
+  // Origin, cause and size have static option lists in the HTML. Route
+  // options are populated from the loaded GeoJSON below.
+  var originChoices = null, routeChoices = null, causeChoices = null,
+      sizeChoices   = null;
+
+  function initChoices() {
+    if (typeof Choices === 'undefined') return;
+    var common = {
+      removeItemButton:       true,
+      shouldSort:             false,
+      placeholder:            true,
+      placeholderValue:       'All',
+      searchPlaceholderValue: 'Search…',
+      allowHTML:              false
+    };
+    originChoices = new Choices(originSelect, Object.assign({}, common,
+      { searchEnabled: false }));
+    causeChoices  = new Choices(causeSelect,  Object.assign({}, common,
+      { searchEnabled: false }));
+    // Tag the cause wrapper so any cause-specific CSS scopes to it only.
+    causeChoices.containerOuter.element.classList.add('cause-choices');
+    routeChoices = new Choices(routeSelect, Object.assign({}, common,
+      { searchEnabled: true }));
+    sizeChoices  = new Choices(sizeSelect,  Object.assign({}, common,
+      { searchEnabled: false }));
+
+    originSelect.addEventListener('change', function () {
+      originFilter = new Set(originChoices.getValue(true));
+      render();
+    });
+    causeSelect.addEventListener('change', function () {
+      causeFilter = new Set(causeChoices.getValue(true));
+      render();
+    });
+    routeSelect.addEventListener('change', function () {
+      routeFilter = new Set(routeChoices.getValue(true));
+      render();
+    });
+    sizeSelect.addEventListener('change', function () {
+      sizeFilter = new Set(sizeChoices.getValue(true));
+      render();
+    });
+  }
+
+  // Build the route dropdown options from IOM's loaded features. Sorted
+  // by frequency desc so the most common routes float to the top.
+  function populateRouteChoices() {
+    if (!routeChoices) return;
+    var counts = {};
+    allFeatures.iom.forEach(function (f) {
+      var v = f.properties.route;
+      if (v == null || v === '') return;
+      counts[v] = (counts[v] || 0) + 1;
+    });
+    var sorted = Object.keys(counts).sort(function (a, b) {
+      return counts[b] - counts[a];
+    });
+    var opts = sorted.map(function (v) { return { value: v, label: v }; });
+    routeChoices.clearStore();
+    routeChoices.setChoices(opts, 'value', 'label', true);
+  }
+});

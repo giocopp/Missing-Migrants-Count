@@ -14,7 +14,9 @@ CSV_UNITED := data/united_europe.csv
 GEOJSON_IOM    := data/incidents_iom.geojson
 GEOJSON_UNITED := data/incidents_united.geojson
 
-.PHONY: all geojson clean help
+PORT := 8000
+
+.PHONY: all geojson serve clean help
 .DEFAULT_GOAL := all
 
 all: geojson
@@ -29,6 +31,12 @@ $(GEOJSON_IOM) $(GEOJSON_UNITED): scripts/02_build_geojson.R $(CSV_IOM) $(CSV_UN
 filter:
 	$(R) scripts/01_filter_europe.R
 
+# Preview the article locally. fetch() needs http://, not file://, so a
+# server is required. Override the port with `make serve PORT=9000`.
+serve:
+	@echo "Open http://localhost:$(PORT)/article.html"
+	python3 -m http.server $(PORT)
+
 clean:
 	rm -f $(GEOJSON_IOM) $(GEOJSON_UNITED)
 
@@ -37,4 +45,5 @@ help:
 	@echo "  make            -> rebuild the two GeoJSON files (default)"
 	@echo "  make geojson    -> same as above"
 	@echo "  make filter     -> re-derive CSVs from the thesis RDS (PRIVATE SOURCE)"
+	@echo "  make serve      -> preview article.html on http://localhost:$(PORT)"
 	@echo "  make clean      -> remove the GeoJSON files"
