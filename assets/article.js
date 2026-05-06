@@ -18,7 +18,7 @@
 //
 // Sections, in order:
 //   1.  Time helpers
-//   2.  Map setup (Leaflet, fullscreen control, basemap)
+//   2.  Map setup (Leaflet, expand control, basemap)
 //   3.  Size encoding (radius + bucket)
 //   4.  Tooltip + layer builder
 //   5.  State + DOM refs
@@ -60,55 +60,76 @@ window.addEventListener('load', function () {
     zoomSnap: 0.5,
     scrollWheelZoom: false,   // avoid hijacking page scroll
     zoomControl: false        // we add this manually below so the
-                              // fullscreen button can sit on top of it
+                              // expand button can sit on top of it
   });
 
-  // Fullscreen control + zoom (topleft, fullscreen on top). Leaflet stacks
-  // same-corner controls in insertion order, so we add the fullscreen
-  // button first, then the zoom control below it.
-  var fullscreenControl = L.control({ position: 'topleft' });
-  fullscreenControl.onAdd = function () {
+  // Expand control + zoom (topleft, expand on top). Leaflet stacks
+  // same-corner controls in insertion order, so we add the expand button
+  // first, then the zoom control below it. Instead of the browser's native
+  // Fullscreen API (jarring jump that hides browser chrome), this toggles
+  // an .is-expanded class that floats the figure as a centered modal with
+  // a CSS-animated grow/shrink and a dimmed backdrop.
+  var ICON_EXPAND =
+    '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+    '<path fill="currentColor" d="M5 5h5V3H3v7h2V5zm14 0v5h2V3h-7v2h5z' +
+    'M5 19h5v2H3v-7h2v5zm14 0v-5h2v7h-7v-2h5z"/></svg>';
+  var ICON_SHRINK =
+    '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+    '<path fill="currentColor" d="M5 10h5V3H8v5H5v2zm9-7v7h7V8h-5V3h-2z' +
+    'M5 14v2h3v5h2v-7H5zm9 7h2v-5h5v-2h-7v7z"/></svg>';
+  var EXPAND_MS = 320;  // matches the CSS transition duration
+  var fig = document.querySelector('.leaflet-figure');
+  var expandBtn;
+
+  function setExpanded(expanded) {
+    if (!fig) return;
+    var isOn = fig.classList.contains('is-expanded');
+    if (expanded === isOn) return;
+    fig.classList.toggle('is-expanded', expanded);
+    document.body.classList.toggle('is-figure-expanded', expanded);
+    if (expandBtn) {
+      expandBtn.innerHTML = expanded ? ICON_SHRINK : ICON_EXPAND;
+      expandBtn.title = expanded ? 'Shrink map' : 'Enlarge map';
+      expandBtn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+    }
+    // Wait for the size transition to finish before recomputing tile
+    // layout, then redraw the histogram so its bars match the new rail.
+    setTimeout(function () {
+      map.invalidateSize();
+      if (typeof drawHistogram === 'function') drawHistogram();
+    }, EXPAND_MS + 20);
+  }
+
+  var expandControl = L.control({ position: 'topleft' });
+  expandControl.onAdd = function () {
     var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-    var btn = L.DomUtil.create('a', 'leaflet-control-fullscreen-btn', container);
-    btn.href = '#';
-    btn.title = 'View map in fullscreen';
-    btn.setAttribute('role', 'button');
-    btn.setAttribute('aria-label', 'Toggle fullscreen view');
-    btn.innerHTML =
-      '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
-      '<path fill="currentColor" d="M5 5h5V3H3v7h2V5zm14 0v5h2V3h-7v2h5z' +
-      'M5 19h5v2H3v-7h2v5zm14 0v-5h2v7h-7v-2h5z"/></svg>';
+    expandBtn = L.DomUtil.create('a', 'leaflet-control-fullscreen-btn', container);
+    expandBtn.href = '#';
+    expandBtn.title = 'Enlarge map';
+    expandBtn.setAttribute('role', 'button');
+    expandBtn.setAttribute('aria-label', 'Toggle enlarged map view');
+    expandBtn.setAttribute('aria-pressed', 'false');
+    expandBtn.innerHTML = ICON_EXPAND;
     L.DomEvent.disableClickPropagation(container);
-    L.DomEvent.on(btn, 'click', function (e) {
+    L.DomEvent.on(expandBtn, 'click', function (e) {
       L.DomEvent.preventDefault(e);
       L.DomEvent.stopPropagation(e);
-      var elem  = document.querySelector('.leaflet-figure') ||
-                  map.getContainer();
-      var doc   = document;
-      var fsEl  = doc.fullscreenElement || doc.webkitFullscreenElement ||
-                  doc.mozFullScreenElement || doc.msFullscreenElement;
-      if (!fsEl) {
-        var req = elem.requestFullscreen      || elem.webkitRequestFullscreen ||
-                  elem.mozRequestFullScreen   || elem.msRequestFullscreen;
-        if (req) req.call(elem);
-      } else {
-        var exit = doc.exitFullscreen         || doc.webkitExitFullscreen ||
-                   doc.mozCancelFullScreen    || doc.msExitFullscreen;
-        if (exit) exit.call(doc);
-      }
+      setExpanded(!fig.classList.contains('is-expanded'));
     });
     return container;
   };
-  fullscreenControl.addTo(map);
+  expandControl.addTo(map);
   L.control.zoom({ position: 'topleft' }).addTo(map);
 
-  // After entering/exiting fullscreen the map element changes size; tell
-  // Leaflet to recompute its viewport so tiles and markers re-align.
-  ['fullscreenchange', 'webkitfullscreenchange',
-   'mozfullscreenchange', 'MSFullscreenChange'].forEach(function (ev) {
-    document.addEventListener(ev, function () {
-      setTimeout(function () { map.invalidateSize(); }, 100);
-    });
+  // ESC closes the enlarged view; clicking the dimmed backdrop also closes.
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && fig && fig.classList.contains('is-expanded')) {
+      setExpanded(false);
+    }
+  });
+  document.addEventListener('click', function (e) {
+    if (!fig || !fig.classList.contains('is-expanded')) return;
+    if (!fig.contains(e.target)) setExpanded(false);
   });
 
   // CartoDB Positron — light grey basemap with country, sea/ocean and
