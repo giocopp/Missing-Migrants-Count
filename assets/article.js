@@ -128,15 +128,15 @@ window.addEventListener('load', function () {
     var flag = PRECISION_FLAGS[p.date_precision];
     if (flag) html += '<div class="precision-flag">' + escapeHtml(flag) + '</div>';
     // Coord-status banner — flagged rows have IOM-side coords that
-    // disagree with the location text or route; corrected rows had a
-    // sign-flip / lat-lon swap reconciled. Both cases get a visible note
-    // so readers see exactly which dots we touched and why.
+    // disagree with every country mentioned in the row; corrected rows
+    // had a sign-flip / lat-lon swap reconciled. Both cases get a
+    // visible note so readers see which dots we touched and why.
     if (p.coord_status === 'flagged') {
       html += '<div class="coord-flag flagged">'
            +   '<strong>⚠ Flagged location.</strong> IOM placed this incident at '
            +   (p.orig_lat != null ? p.orig_lat.toFixed(4) : '?') + ', '
            +   (p.orig_lon != null ? p.orig_lon.toFixed(4) : '?')
-           +   ', but those coordinates don’t match the location described or the route. '
+           +   ', but those coordinates don’t match any country mentioned in the row. '
            +   'Shown here at IOM’s coordinates — treat the dot’s position as suspect.'
            + '</div>';
     } else if (p.coord_status === 'corrected') {
