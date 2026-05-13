@@ -6,7 +6,7 @@ Counting deaths and disappearances at sea is inherently difficult and often depe
 
 ## 📄 View
 
-**[Open on raw.githack.com](https://raw.githack.com/data-journalism-26/data-bit-1-giorgio/main/article.html)** · or run a local server:
+**[Open on raw.githack.com](https://raw.githack.com/giocopp/Missing-Migrants-Count/main/article.html)** · or run a local server:
 
 ```bash
 make serve
