@@ -555,6 +555,22 @@ figure.hero-image img {
 .source-caption .src-name.iom    { color: #2E5984; }
 .source-caption .src-meta { color: var(--muted); }
 
+/* One-line reading guide sitting just above the map, giving readers
+   who arrive without a question of their own a concrete first filter
+   to try (period: 2026) before exploring the full dataset. */
+.map-guide {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: #f7f4ed;
+  border-left: 3px solid #c9a86b;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 2px;
+}
+.map-guide strong { color: var(--text); }
+
 /* ── 7. Period bar (year-range slider + dropdowns) ────────── */
 .year-bar {
   display: flex;
